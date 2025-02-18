@@ -32,6 +32,8 @@ library(gridGraphics)
 #set directories
 home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
 outdir=file.path(home,"4_Outputs")
+funcdir<-file.path(home,"1_Scripts","MakeFigures","Functions")
+filestr<-"05APR23_Runs"
 
 #read in pigsums dataset
 pigsums<-readRDS(file.path(home,"2_Data","Objects","dailyPigSums.rds"))
@@ -39,33 +41,32 @@ pigswsite<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 pigs<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 
 #region got duplicated, fix this
-pigsums2<-pigsums2[,-1]
-pigsums2<-pigsums2[,-c(2)]
-colnames(pigsums2)[ncol(pigsums2)]<-"region"
+colnames(pigsums)[3]<-"region"
 
 #make sure all correct classes
-pigsums2[,c(2,3,6:48)] <- lapply(pigsums2[,c(2,3,6:48)],as.numeric)
-pigsums2[,c(1,4,5,49)] <- lapply(pigsums2[,c(1,4,5,49)],as.factor)
+num.cols=c(9:12,14:36,38:62)
+cat.cols=c(13,37)
+  
+pigsums[,num.cols] <- lapply(pigsums[,num.cols],as.numeric)
+pigsums[,cat.cols] <- lapply(pigsums[,cat.cols],as.factor)
 
-pigsums=pigsums2
-studydf=unique(pigsites[,c(1,2)])
+studydf=unique(pigsums$region)
 
 #make cutoff set for sigma models
-cutoff_sl=pigsums2[pigsums2$count>150,]
+cutoff_sl=pigsums[pigsums$count>150,]
 
 #Source functions
-source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/NeatenVarNames.R"))
-source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/MakePlotGrid.R"))
-source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/CombinePredObsFunction.R"))
-source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/GetStudyCVTables.R"))
-source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/multiplotfunction.R"))
-source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/MakePdpGridFunction.R"))
-source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/MakeVarSizeDotPlots.R"))
-source(paste0(home,"/Scripts_Polished/GBM_nestedCV/K_Split.R"))
+source(file.path(funcdir,"NeatenVarNames.R"))
+source(file.path(funcdir,"MakePlotGrid.R"))
+source(file.path(funcdir,"CombinePredObsFunction.R"))
+source(file.path(funcdir,"GetStudyCVTables.R"))
+source(file.path(funcdir,"multiplotfunction.R"))
+source(file.path(funcdir,"MakePdpGridFunction.R"))
+source(file.path(funcdir,"MakeVarSizeDotPlots.R"))
+source(file.path(funcdir,"K_Split.R"))
 
-#########################
-##Model selection table##
-#########################
+
+# Make model selection table ---------------------------
 
 #make table with all mean R2 and RMSEs
 #row for each response (5)
@@ -80,16 +81,16 @@ rownames(model.sel.tbl.region)=c("step length", "step length sigma", "displaceme
 colnames(model.sel.tbl.region)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
 
 #Full model: get values from file
-full.RMSE.sl=read.csv(paste0(outdir,"05APR23_Runs/Random/sl_meanRMSE.csv"))
-full.R2.sl=read.csv(paste0(outdir,"05APR23_Runs/Random/sl_meanR2.csv"))
-full.RMSE.sigma.sl=read.csv(paste0(outdir,"05APR23_Runs/Random/sigma.sl_meanRMSE.csv"))
-full.R2.sigma.sl=read.csv(paste0(outdir,"05APR23_Runs/Random/sigma.sl_meanR2.csv"))
-full.RMSE.disp=read.csv(paste0(outdir,"05APR23_Runs/Random/disp_meanRMSE.csv"))
-full.R2.disp=read.csv(paste0(outdir,"05APR23_Runs/Random/disp_meanR2.csv"))
-full.RMSE.sigma.disp=read.csv(paste0(outdir,"05APR23_Runs/Random/sigma.disp_meanRMSE.csv"))
-full.R2.sigma.disp=read.csv(paste0(outdir,"05APR23_Runs/Random/sigma.disp_meanR2.csv"))
-full.RMSE.tenavg=read.csv(paste0(outdir,"05APR23_Runs/Random/tenavg_meanRMSE.csv"))
-full.R2.tenavg=read.csv(paste0(outdir,"05APR23_Runs/Random/tenavg_meanR2.csv"))
+full.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","sl_meanRMSE.csv"))
+full.R2.sl=read.csv(file.path(outdir,filestr,"Random","sl_meanR2.csv"))
+full.RMSE.sigma.sl=read.csv(file.path(outdir,filestr,"Random","sigma.sl_meanRMSE.csv"))
+full.R2.sigma.sl=read.csv(file.path(outdir,filestr,"Random","sigma.sl_meanR2.csv"))
+full.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","disp_meanRMSE.csv"))
+full.R2.disp=read.csv(file.path(outdir,filestr,"Random","disp_meanR2.csv"))
+full.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","sigma.disp_meanRMSE.csv"))
+full.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","sigma.disp_meanR2.csv"))
+full.RMSE.tenavg=read.csv(file.path(outdir,"Random","tenavg_meanRMSE.csv"))
+full.R2.tenavg=read.csv(file.path(outdir,"Random","tenavg_meanR2.csv"))
 
 #Full model region kfold: get values from file
 full.RMSE.sl.region=read.csv(paste0(outdir,"05APR23_Runs/Region/sl_meanRMSE.csv"))
