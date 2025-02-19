@@ -33,27 +33,40 @@ library(gridGraphics)
 home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
 outdir=file.path(home,"4_Outputs")
 funcdir<-file.path(home,"1_Scripts","MakeFigures","Functions")
-filestr<-"05APR23_Runs"
+filestr<-"TestRuns"
 
 #read in pigsums dataset
 pigsums<-readRDS(file.path(home,"2_Data","Objects","dailyPigSums.rds"))
 pigswsite<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 pigs<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 
+## Format pigsums df ------------------
+
 #region got duplicated, fix this
 colnames(pigsums)[3]<-"region"
 
 #make sure all correct classes
 num.cols=c(9:12,14:36,38:62)
-cat.cols=c(13,37)
+cat.cols=c(1,2,3,4,5,6,7,8,13,37)
   
 pigsums[,num.cols] <- lapply(pigsums[,num.cols],as.numeric)
 pigsums[,cat.cols] <- lapply(pigsums[,cat.cols],as.factor)
 
+#Get vector of study/region names
 studydf=unique(pigsums$region)
 
 #make cutoff set for sigma models
-cutoff_sl=pigsums[pigsums$count>150,]
+pigsums_sigmasl=pigsums[pigsums$not_na_sl>30,]
+pigsums_sigmadisp=pigsums[pigsums$not_na_displ>30,]
+
+#Remove NAs to run GBMs later for diagnostic stats
+pigsums_sl<-pigsums[!is.na(pigsums$sl_mean),]
+pigsums_displ<-pigsums[!is.na(pigsums$displ_mean),]
+
+#Set responses to integer for Poisson models
+pigsums_sl$sl_mean<-as.integer(pigsums_sl$sl_mean)
+pigsums_displ$displ_mean<-as.integer(pigsums_displ$displ_mean)
+
 
 #Source functions
 source(file.path(funcdir,"NeatenVarNames.R"))
@@ -63,7 +76,7 @@ source(file.path(funcdir,"GetStudyCVTables.R"))
 source(file.path(funcdir,"multiplotfunction.R"))
 source(file.path(funcdir,"MakePdpGridFunction.R"))
 source(file.path(funcdir,"MakeVarSizeDotPlots.R"))
-source(file.path(funcdir,"K_Split.R"))
+source(file.path(home,"1_Scripts","Analysis","GBM_nestedCV","GBM_Functions","K_Split.R"))
 
 
 # Make model selection table ---------------------------
@@ -73,10 +86,10 @@ source(file.path(funcdir,"K_Split.R"))
 #col for each 2 metrics (RMSE and R2) and 4 models (full, drop01, lassodrop, null)
 
 #initiate tables, region and random cv methods
-model.sel.tbl=as.data.frame(matrix(nrow=5,ncol=8))
+model.sel.tbl=as.data.frame(matrix(nrow=4,ncol=8))
 rownames(model.sel.tbl)=c("step length", "step length sigma", "displacement", "disp. sigma", "top average sl")
 colnames(model.sel.tbl)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
-model.sel.tbl.region=as.data.frame(matrix(nrow=5,ncol=8))
+model.sel.tbl.region=as.data.frame(matrix(nrow=4,ncol=8))
 rownames(model.sel.tbl.region)=c("step length", "step length sigma", "displacement", "disp. sigma", "top average sl")
 colnames(model.sel.tbl.region)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
 
@@ -89,8 +102,6 @@ full.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","disp_meanRMSE.csv"))
 full.R2.disp=read.csv(file.path(outdir,filestr,"Random","disp_meanR2.csv"))
 full.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","sigma.disp_meanRMSE.csv"))
 full.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","sigma.disp_meanR2.csv"))
-full.RMSE.tenavg=read.csv(file.path(outdir,"Random","tenavg_meanRMSE.csv"))
-full.R2.tenavg=read.csv(file.path(outdir,"Random","tenavg_meanR2.csv"))
 
 #Full model region kfold: get values from file
 full.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","sl_meanRMSE.csv"))
@@ -101,8 +112,6 @@ full.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","disp_meanRMSE.
 full.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","disp_meanR2.csv"))
 full.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","sigma.disp_meanRMSE.csv"))
 full.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","sigma.disp_meanR2.csv"))
-full.RMSE.tenavg.region=read.csv(file.path(outdir,filestr,"Region","tenavg_meanRMSE.csv"))
-full.R2.tenavg.region=read.csv(file.path(outdir,filestr,"Region","tenavg_meanR2.csv"))
 
 #Drop01 model: get vals
 drop01.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sl_meanRMSE.csv"))
@@ -113,8 +122,6 @@ drop01.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","disp_m
 drop01.R2.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","disp_meanR2.csv"))
 drop01.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sigma.disp_meanRMSE.csv"))
 drop01.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sigma.disp_meanR2.csv"))
-drop01.RMSE.tenavg=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","tenavg_meanRMSE.csv"))
-drop01.R2.tenavg=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","tenavg_meanR2.csv"))
 
 #Drop01 region kfold model: get vals
 drop01.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sl_meanRMSE.csv"))
@@ -125,8 +132,6 @@ drop01.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop",
 drop01.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","disp_meanR2.csv"))
 drop01.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.disp_meanRMSE.csv"))
 drop01.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.disp_meanR2.csv"))
-drop01.RMSE.tenavg.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","tenavg_meanRMSE.csv"))
-drop01.R2.tenavg.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","tenavg_meanR2.csv"))
 
 #lasso model: get vals
 lasso.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sl_meanRMSE.csv"))
@@ -137,8 +142,6 @@ lasso.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","disp_mea
 lasso.R2.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","disp_meanR2.csv"))
 lasso.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.disp_meanRMSE.csv"))
 lasso.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.disp_meanR2.csv"))
-lasso.RMSE.tenavg=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","tenavg_meanRMSE.csv"))
-lasso.R2.tenavg=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","tenavg_meanR2.csv"))
 
 #lasso model region kfold: get vals
 lasso.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sl_meanRMSE.csv"))
@@ -149,8 +152,6 @@ lasso.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","d
 lasso.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","disp_meanR2.csv"))
 lasso.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.disp_meanRMSE.csv"))
 lasso.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.disp_meanR2.csv"))
-lasso.RMSE.tenavg.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","tenavg_meanRMSE.csv"))
-lasso.R2.tenavg.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","tenavg_meanR2.csv"))
 
 #null model: get vals
 null.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sl_meanRMSE.csv"))
@@ -161,8 +162,6 @@ null.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","disp_meanR
 null.R2.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","disp_meanR2.csv"))
 null.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sigma.disp_meanRMSE.csv"))
 null.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sigma.disp_meanR2.csv"))
-null.RMSE.tenavg=read.csv(file.path(outdir,filestr,"Random","GBM_Null","tenavg_meanRMSE.csv"))
-null.R2.tenavg=read.csv(file.path(outdir,filestr,"Random","GBM_Null","tenavg_meanR2.csv"))
 
 #null model region: get vals
 null.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sl_meanRMSE.csv"))
@@ -173,8 +172,6 @@ null.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","dis
 null.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","disp_meanR2.csv"))
 null.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sigma.disp_meanRMSE.csv"))
 null.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sigma.disp_meanR2.csv"))
-null.RMSE.tenavg.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","tenavg_meanRMSE.csv"))
-null.R2.tenavg.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","tenavg_meanR2.csv"))
 
 #col 1,2: full model rmse, r2
 #row 1: sl
@@ -189,9 +186,6 @@ model.sel.tbl[3,2]=round(full.R2.disp[1,2],3)
 #row 4: sigma disp
 model.sel.tbl[4,1]=round(full.RMSE.sigma.disp[1,2],3)
 model.sel.tbl[4,2]=round(full.R2.sigma.disp[1,2],3)
-#row 5: sigma disp
-model.sel.tbl[5,1]=round(full.RMSE.tenavg[1,2],3)
-model.sel.tbl[5,2]=round(full.R2.tenavg[1,2],3)
 
 #col 3,4: drop01 rmse, r2
 #row 1: sl
@@ -206,9 +200,6 @@ model.sel.tbl[3,4]=round(full.R2.disp[1,2],3)
 #row 4: sigma disp
 model.sel.tbl[4,3]=round(drop01.RMSE.sigma.disp[1,2],3)
 model.sel.tbl[4,4]=round(drop01.R2.sigma.disp[1,2],3)
-#row 5: sigma disp
-model.sel.tbl[5,3]=round(drop01.RMSE.tenavg[1,2],3)
-model.sel.tbl[5,4]=round(drop01.R2.tenavg[1,2],3)
 
 #col 5,6: lasso drop
 #row 1: sl
@@ -240,11 +231,6 @@ model.sel.tbl[3,8]=round(null.R2.disp[1,2],3)
 #row 4: sigma disp
 model.sel.tbl[4,7]=round(null.RMSE.sigma.disp[1,2],3)
 model.sel.tbl[4,8]=round(null.R2.sigma.disp[1,2],3)
-#row 5: sigma disp
-model.sel.tbl[5,7]=round(null.RMSE.tenavg[1,2],3)
-model.sel.tbl[5,8]=round(null.R2.tenavg[1,2],3)
-
-#write.csv(model.sel.tbl,paste(outdir,"ModelSelTbl_14DEC22.csv"))
 
 #col 1,2: region full model rmse, r2
 #row 1: sl
@@ -259,9 +245,6 @@ model.sel.tbl.region[3,2]=round(full.R2.disp.region[1,2],3)
 #row 4: sigma disp
 model.sel.tbl.region[4,1]=round(full.RMSE.sigma.disp.region[1,2],3)
 model.sel.tbl.region[4,2]=round(full.R2.sigma.disp.region[1,2],3)
-#row 5: sigma disp
-model.sel.tbl.region[5,1]=round(full.RMSE.tenavg.region[1,2],3)
-model.sel.tbl.region[5,2]=round(full.R2.tenavg.region[1,2],3)
 
 #col 3,4: region drop01 model rmse, r2
 #row 1: sl
@@ -276,9 +259,6 @@ model.sel.tbl.region[3,4]=round(drop01.R2.disp.region[1,2],3)
 #row 4: sigma disp
 model.sel.tbl.region[4,3]=round(drop01.RMSE.sigma.disp.region[1,2],3)
 model.sel.tbl.region[4,4]=round(drop01.R2.sigma.disp.region[1,2],3)
-#row 5: sigma disp
-model.sel.tbl.region[5,3]=round(drop01.RMSE.tenavg.region[1,2],3)
-model.sel.tbl.region[5,4]=round(drop01.R2.tenavg.region[1,2],3)
 
 #col 5,6: region lasso model rmse, r2
 #row 1: sl
@@ -293,9 +273,6 @@ model.sel.tbl.region[3,6]=round(lasso.R2.disp.region[1,2],3)
 #row 4: sigma disp
 model.sel.tbl.region[4,5]=round(lasso.RMSE.sigma.disp.region[1,2],3)
 model.sel.tbl.region[4,6]=round(lasso.R2.sigma.disp.region[1,2],3)
-#row 5: sigma disp
-model.sel.tbl.region[5,5]=round(lasso.RMSE.tenavg.region[1,2],3)
-model.sel.tbl.region[5,6]=round(lasso.R2.tenavg.region[1,2],3)
 
 #col 7,8: region null model rmse, r2
 #row 1: sl
@@ -310,230 +287,170 @@ model.sel.tbl.region[3,8]=round(null.R2.disp.region[1,2],3)
 #row 4: sigma disp
 model.sel.tbl.region[4,7]=round(null.RMSE.sigma.disp.region[1,2],3)
 model.sel.tbl.region[4,8]=round(null.R2.sigma.disp.region[1,2],3)
-#row 5: sigma disp
-model.sel.tbl.region[5,7]=round(null.RMSE.tenavg.region[1,2],3)
-model.sel.tbl.region[5,8]=round(null.R2.tenavg.region[1,2],3)
 
-#write.csv(model.sel.tbl.region,paste(outdir,"ModelSelTbl_region_14DEC22.csv"))
-
-model.sel.tbl.total=as.data.frame(matrix(nrow=5,ncol=16))
-rownames(model.sel.tbl.total)=c("step length", "step length sigma", "displacement", "disp. sigma", "top average sl")
+model.sel.tbl.total=as.data.frame(matrix(nrow=4,ncol=16))
+rownames(model.sel.tbl.total)=c("step length", "step length sigma", "displacement", "disp. sigma")
 colnames(model.sel.tbl.total)=c("full RMSE random", "full r2 random", "drop 01 RMSE random", "drop 01 r2 random", "lasso RMSE random", "lasso r2 random", "null RMSE random", "null R2 random",
                           "full RMSE region", "full r2 region", "drop 01 RMSE region", "drop 01 r2 region", "lasso RMSE region", "lasso r2 region", "null RMSE region", "null R2region")
 
-model.sel.tbl.total[1:5,1:8]=model.sel.tbl
-model.sel.tbl.total[1:5,9:16]=model.sel.tbl.region
+model.sel.tbl.total[1:4,1:8]=model.sel.tbl
+model.sel.tbl.total[1:4,9:16]=model.sel.tbl.region
 
 model.sel.tbl.total=model.sel.tbl.total[,-c(2,4,6,8,10,12,14,16)]
 
-write.csv(model.sel.tbl.total,paste(outdir,"ModelSelTblTotal_26APR22.csv"))
+write.csv(model.sel.tbl.total,file.path(outdir,filestr,"FigTab","ModelSelTblTotal.csv"))
 
-#get opt params for each top model
-sl.opt.params.kfold=read.csv(paste0(outdir,"05APR23_Runs/Random/sl_bestmodelparams.csv"))
-sigma.sl.opt.params.kfold=read.csv(paste0(outdir,"05APR23_Runs/Random/sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold=read.csv(paste0(outdir,"05APR23_Runs/Random/disp_bestmodelparams.csv"))
-sigma.disp.opt.params.kfold=read.csv(paste0(outdir,"05APR23_Runs/Random/sigma.disp_bestmodelparams.csv"))
-tenavg.opt.params.kfold=read.csv(paste0(outdir,"05APR23_Runs/Random/tenavg_bestmodelparams.csv"))
+# Run GBMs -----------------
 
-sl.opt.params.kfold_region=read.csv(paste0(outdir,"05APR23_Runs/Region/sl_bestmodelparams.csv"))
-sigma.sl.opt.params.kfold_region=read.csv(paste0(outdir,"05APR23_Runs/Region/sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold_region=read.csv(paste0(outdir,"05APR23_Runs/Region/disp_bestmodelparams.csv"))
-sigma.disp.opt.params.kfold_region=read.csv(paste0(outdir,"05APR23_Runs/Region/sigma.disp_bestmodelparams.csv"))
-tenavg.opt.params.kfold_region=read.csv(paste0(outdir,"05APR23_Runs/Region/tenavg_bestmodelparams.csv"))
+## get opt params for each top model --------
+sl.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","sl_bestmodelparams.csv"))
+sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","sigma.sl_bestmodelparams.csv"))
+disp.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","disp_bestmodelparams.csv"))
+sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","sigma.disp_bestmodelparams.csv"))
 
-#read in X vecs as needed
-#RANDOM: all full model X_vec
-#sl-full region
-#sl.sigma-full random
-#displ-random drop 01
-#tenavg-full region
+sl.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","sl_bestmodelparams.csv"))
+sigma.sl.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","sigma.sl_bestmodelparams.csv"))
+disp.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","disp_bestmodelparams.csv"))
+sigma.disp.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","sigma.disp_bestmodelparams.csv"))
 
-#Random
-#sl-full
-#sl sigma-full
-#disp-drop 01
-#disp sigma- full
-#top avg-full
+## determine X vec for each response --------
 
-#Region
-#sl-full
-#sl sigma-full
-#disp-lasso
-#disp sigma- full
-#top avg-full
+getXvec<-function(model.sel.tbl.total){
+  X_vec_list=vector(mode="list",length=4)
+  names(X_vec_list)<-c("Xsl","sigmasl","Xdisp","sigmadisp")
+  
+  X_sel=data.frame(matrix(nrow=4,ncol=4))
+  colnames(X_sel)<-c("response","X_vec","reg_ran","vars")
+  for(i in 1:nrow(model.sel.tbl.total)){
+    X_sel[i,1]=rownames(model.sel.tbl.total)[i]
+    c_ind=which(model.sel.tbl.total[i,]==min(model.sel.tbl.total[i,]))
+    X_sel[i,2]=colnames(model.sel.tbl.total)[c_ind]
+  }
+  
+  #parse text in X sel: region or random
+  X_sel[grep("region",X_sel$X_vec),3]<-"Region"
+  X_sel[grep("random",X_sel$X_vec),3]<-"Random"
+  
+  #parse text in X sel: variable sel
+  X_sel[grep("full",X_sel$X_vec),4]<-"Full"
+  X_sel[grep("drop 01",X_sel$X_vec),4]<-"X_vec_01Drop"
+  X_sel[grep("lasso",X_sel$X_vec),4]<-"X_vec_postlasso"
+  X_sel[grep("null",X_sel$X_vec),4]<-"Null"
+  
+  for(i in 1:length(X_vec_list)){
+    if(X_sel[i,4]=="Full"){
+      X_vec_list[[i]]<-c(
+        which(colnames(pigsums)=="sex"),
+        which(colnames(pigsums)=="season"),
+        which(colnames(pigsums)=="period"),
+        which(colnames(pigsums)=="mean_tc"):
+          which(colnames(pigsums)=="var_lc_24")
+      )
+    }
+    if(X_sel[i,4]=="X_vec_01Drop"|X_sel[i,4]=="X_vec_postlasso"){
+      X_vec_folder=file.path(outdir,filestr,X_sel[i,3],X_sel[i,4])
+      Xfiles=list.files(X_vec_folder,full.names=TRUE)
+      Xfile=Xfiles[grep(names(X_vec_list)[i],Xfiles)]
+      X_vec_list[[i]]=read.csv(Xfile)[,2]
+    }
 
-#sl,sl.sigma,tenavg
-X_vec.start=c(3,4,6:13,18,21:35,38:44,46:48)
+    if(X_sel[i,4]=="Null"){
+      X_vec_list[[i]]=rep(1,nrow(pigsums))
+    }
+  }
+  
+  return(X_vec_list)
+  
+}
 
-#displ random
-X.vec.disp.01drop=read.csv(paste0(outdir,"05APR23_Runs/Random/X_vec_01Drop/Xdisp.csv"))
-X.vec.disp.01drop=X.vec.disp.01drop[,2]
+X_vec_list=getXvec(model.sel.tbl.total)
 
-#displ region
-X.vec.disp.lasso.region=read.csv(paste0(outdir,"05APR23_Runs/Region/X_vec_postlasso/Xdisp_lasso.csv"))
-X.vec.disp.lasso.region=X.vec.disp.lasso.region[,2]
-
-#REGION: 
-#sl region 01 drop
-#X.vec.sl_01drop.region=read.csv(paste0(outdir,"05APR23_Runs/Region/X_vec_01Drop/Xsl.csv"))
-#X.vec.sl_01drop.region=X.vec.sl_01drop.region[,2]
-#sigma sl lasso region - full model, X_vec.start
-#X.vec.sigma.sl.lasso.region=read.csv(paste0(outdir,"X_vec_postlasso_13DEC22_region/Xsigmasl_lasso.csv"))
-#X.vec.sigma.sl.lasso.region=X.vec.sigma.sl.lasso.region[,2]
-#disp region 01 drop region
-#X.vec.disp.01drop.region=read.csv(paste0(outdir,"05APR23_Runs/Region/X_vec_01Drop/Xdisp.csv"))
-#X.vec.disp.01drop.region=X.vec.disp.01drop.region[,2]
-#tenavg lasso region
-#X.vec.tenavg.01drop.region=read.csv(paste0(outdir,"05APR23_Runs/Region/X_vec_01Drop/Xtenavg.csv"))
-#X.vec.tenavg.01drop.region=X.vec.tenavg.01drop.region[,2]
-
-
-gbm.sl=gbm.fixed(data=pigsums2, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sl_"),
+## Run GBMs --------
+gbm.sl=gbm.fixed(data=pigsums_sl, gbm.x=X_vec_list$Xsl, gbm.y=which(colnames(pigsums_sl)=="sl_mean"),
                  learning.rate=sl.opt.params.kfold$learning.rate, 
                  tree.complexity=sl.opt.params.kfold$tree.complexity, 
                  n.trees=sl.opt.params.kfold$n.trees,
                  bag.fraction=sl.opt.params.kfold$bag.fraction,
                  family="poisson") 
-gbm.disp=gbm.fixed(data=pigsums2, gbm.x=X.vec.disp.01drop, gbm.y=which(colnames(pigsums)=="displacement"),
+gbm.disp=gbm.fixed(data=pigsums_displ, gbm.x=X_vec_list$Xdisp, gbm.y=which(colnames(pigsums)=="displ_mean"),
                    learning.rate=disp.opt.params.kfold$learning.rate, 
                    tree.complexity=disp.opt.params.kfold$tree.complexity, 
                    n.trees=disp.opt.params.kfold$n.trees,
                    bag.fraction=disp.opt.params.kfold$bag.fraction,
                    family="poisson") 
-gbm.sigma.sl=gbm.fixed(data=cutoff_sl, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sigma_sl"),
+gbm.sigma.sl=gbm.fixed(data=pigsums_sigmasl, gbm.x=X_vec_list$sigmasl, gbm.y=which(colnames(pigsums)=="sl_disp"),
                        learning.rate=sigma.sl.opt.params.kfold$learning.rate, 
                        tree.complexity=sigma.sl.opt.params.kfold$tree.complexity, 
                        n.trees=sigma.sl.opt.params.kfold$n.trees,
                        bag.fraction=sigma.sl.opt.params.kfold$bag.fraction,
                        family="gaussian") 
-gbm.sigma.disp=gbm.fixed(data=cutoff_sl, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sigma_disp"),
+gbm.sigma.disp=gbm.fixed(data=pigsums_sigmadisp, gbm.x=X_vec_list$sigmadisp, gbm.y=which(colnames(pigsums)=="displ_disp"),
                          learning.rate=sigma.disp.opt.params.kfold$learning.rate, 
                          tree.complexity=sigma.disp.opt.params.kfold$tree.complexity, 
                          n.trees=sigma.disp.opt.params.kfold$n.trees,
                          bag.fraction=sigma.disp.opt.params.kfold$bag.fraction,
                          family="gaussian") 
-gbm.tenavg=gbm.fixed(data=pigsums, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="tenavg"),
-                     learning.rate=tenavg.opt.params.kfold$learning.rate, 
-                     tree.complexity=tenavg.opt.params.kfold$tree.complexity, 
-                     n.trees=tenavg.opt.params.kfold$n.trees,
-                     bag.fraction=tenavg.opt.params.kfold$bag.fraction,
-                     family="poisson") 
-#Region
-#sl-full
-#sl sigma-full
-#disp-lasso
-#disp sigma- full
-#top avg-full
-#region kfold models
-gbm.sl_region=gbm.fixed(data=pigsums2, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sl_"),
-                 learning.rate=sl.opt.params.kfold_region$learning.rate, 
-                 tree.complexity=sl.opt.params.kfold_region$tree.complexity, 
-                 n.trees=sl.opt.params.kfold_region$n.trees,
-                 bag.fraction=sl.opt.params.kfold_region$bag.fraction,
-                 family="poisson")
 
-gbm.sigma.sl_region=gbm.fixed(data=cutoff_sl, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sigma_sl"),
-                        learning.rate=sigma.sl.opt.params.kfold_region$learning.rate, 
-                        tree.complexity=sigma.sl.opt.params.kfold_region$tree.complexity, 
-                        n.trees=sigma.sl.opt.params.kfold_region$n.trees,
-                        bag.fraction=sigma.sl.opt.params.kfold_region$bag.fraction,
-                        family="gaussian") 
-
-gbm.disp_region=gbm.fixed(data=pigsums2, gbm.x=X.vec.disp.lasso.region, gbm.y=which(colnames(pigsums)=="displacement"),
-                        learning.rate=disp.opt.params.kfold_region$learning.rate, 
-                        tree.complexity=disp.opt.params.kfold_region$tree.complexity, 
-                        n.trees=disp.opt.params.kfold_region$n.trees,
-                        bag.fraction=disp.opt.params.kfold_region$bag.fraction,
-                        family="poisson") 
-
-gbm.sigma.disp_region=gbm.fixed(data=cutoff_sl, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sigma_disp"),
-                          learning.rate=sigma.disp.opt.params.kfold_region$learning.rate, 
-                          tree.complexity=sigma.disp.opt.params.kfold_region$tree.complexity, 
-                          n.trees=sigma.disp.opt.params.kfold_region$n.trees,
-                          bag.fraction=sigma.disp.opt.params.kfold_region$bag.fraction,
-                          family="gaussian") 
-
-gbm.tenavg_region=gbm.fixed(data=pigsums2, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="tenavg"),
-                     learning.rate=tenavg.opt.params.kfold$learning.rate, 
-                     tree.complexity=tenavg.opt.params.kfold$tree.complexity, 
-                     n.trees=tenavg.opt.params.kfold$n.trees,
-                     bag.fraction=tenavg.opt.params.kfold$bag.fraction,
-                     family="poisson") 
+# Relative influence plot grids -----------------
 
 #export importance tables/figures
 rel.inf.sl=summary(gbm.sl)
 rel.inf.sigma.sl=summary(gbm.sigma.sl)
 rel.inf.disp=summary(gbm.disp)
 rel.inf.sigma.disp=summary(gbm.sigma.disp)
-rel.inf.tenavg=summary(gbm.tenavg)
-
-rel.inf.sl_region=summary(gbm.sl_region)
-rel.inf.sigma.sl_region=summary(gbm.sigma.sl_region)
-rel.inf.disp_region=summary(gbm.disp_region)
-rel.inf.sigma.disp_region=summary(gbm.sigma.disp_region)
-rel.inf.tenavg_region=summary(gbm.tenavg_region)
 
 #for top models, transform RI into percentages
-rel.inf.sl_region$rel.prop=rel.inf.sl_region$rel.inf/rel.inf.sl_region$rel.inf[1]
+rel.inf.sl$rel.prop=rel.inf.sl$rel.inf/rel.inf.sl$rel.inf[1]
 rel.inf.sigma.sl$rel.prop=rel.inf.sigma.sl$rel.inf/rel.inf.sigma.sl$rel.inf[1]
 rel.inf.disp$rel.prop=rel.inf.disp$rel.inf/rel.inf.disp$rel.inf[1]
-rel.inf.sigma.disp_region$rel.prop=rel.inf.sigma.disp_region$rel.inf/rel.inf.sigma.disp_region$rel.inf[1]
+rel.inf.sigma.disp$rel.prop=rel.inf.sigma.disp$rel.inf/rel.inf.sigma.disp$rel.inf[1]
 
-rel.inf.sl_region=rel.inf.sl_region[order(rel.inf.sl_region[,1]),]
+rel.inf.sl=rel.inf.sl[order(rel.inf.sl[,1]),]
 rel.inf.sigma.sl=rel.inf.sigma.sl[order(rel.inf.sigma.sl[,1]),]
 rel.inf.disp=rel.inf.disp[order(rel.inf.disp[,1]),]
-rel.inf.sigma.disp_region=rel.inf.sigma.disp_region[order(rel.inf.sigma.disp_region[,1]),]
+rel.inf.sigma.disp=rel.inf.sigma.disp[order(rel.inf.sigma.disp[,1]),]
 
-colnames(rel.inf.sl_region)[3]="rel.prop.sl"
-colnames(rel.inf.sigma.sl)[3]="rel.prop.sigmasl"
-colnames(rel.inf.disp)[3]="rel.prop.disp"
-colnames(rel.inf.sigma.disp_region)[3]="rel.prop.sigmadisp"
+colnames(rel.inf.sl)[3]="S.L."
+colnames(rel.inf.sigma.sl)[3]="S.L. var"
+colnames(rel.inf.disp)[3]="Displ."
+colnames(rel.inf.sigma.disp)[3]="Displ. var"
 
-join1=full_join(rel.inf.sl_region,rel.inf.sigma.sl,by="var")
+#join all rel inf dfs together
+join1=full_join(rel.inf.sl,rel.inf.sigma.sl,by="var")
 join2=full_join(join1,rel.inf.disp,by="var")
-join3=full_join(join2,rel.inf.sigma.disp_region,by="var")
+join3=full_join(join2,rel.inf.sigma.disp,by="var")
 
+#select needed cols
 join4=join3[,c(1,3,5,7,9)]
 
+#get long format
 join5=as.data.frame(pivot_longer(join4,2:5))
 
-#Fix names, neaten
-join5[join5$name=="rel.prop.disp",2]<-"Displ."
-join5[join5$name=="rel.prop.sigmadisp",2]<-"Displ. var"
-join5[join5$name=="rel.prop.sigmasl",2]<-"S.L. var"
-join5[join5$name=="rel.prop.sl",2]<-"S.L."
+#Neaten names
+#all good, just want to replace lc nums with something more informative
+#grep(join5[,1])
+lc_vals=c(11,12,21,22,23,24,31,41,42,43,51,52,71,72,73,74,81,82,90,95)
+lc_abbrev=c("water","ice","dev_open","dev_low","dev_med","dev_hi","barren","decid_for","ever_for","mix_for","dw_scrub","shrub","grass_herb","sedge_herb","lichen","moss","pasture","crop","wood_wetl","emherb_wetl")
+lc_names=c("Water","Ice","Dev. Open","Dev. Low","Dev. Med.","Dev. High","Barren","Decid. For.","Evergr. For.","Mixed For.","Dw. Scrub","Shrub","Grassland","Sedge","Lichen","Moss","Pasture","Crop","Woody Wetl.","Em. Herb. Wetl.")
+lc_df=data.frame("vals"=lc_vals,"abbrev"=lc_abbrev,"names"=lc_names)
 
-join5[join5$var=="dayl..s.",1]<-"Daylight"
-join5[join5$var=="daylrange",1]<-"Dayl. range"
-join5[join5$var=="Droughtrange",1]<-"Drought range"
-join5[join5$var=="LCsums",1]<-"LC sums"
-join5[join5$var=="LCT_1",1]<-"LC 1"
-join5[join5$var=="LCT_10",1]<-"LC 10"
-join5[join5$var=="LCT_14",1]<-"LC 14"
-join5[join5$var=="LCT_15",1]<-"LC 15"
-join5[join5$var=="LCT_16",1]<-"LC 16"
-join5[join5$var=="LCT_17",1]<-"LC 17"
-join5[join5$var=="LCT_18",1]<-"LC 18"
-join5[join5$var=="LCT_3",1]<-"LC 3"
-join5[join5$var=="LCT_4",1]<-"LC 4"
-join5[join5$var=="LCT_5",1]<-"LC 5"
-join5[join5$var=="LCT_6",1]<-"LC 6"
-join5[join5$var=="LCT_7",1]<-"LC 7"
-join5[join5$var=="LCT_8",1]<-"LC 8"
-join5[join5$var=="LCT_9",1]<-"LC 9"
-join5[join5$var=="Mastrange",1]<-"Mast range"
-join5[join5$var=="prcp..mm.day.",1]<-"Prcp"
-join5[join5$var=="prcprange",1]<-"Prcp rng."
-join5[join5$var=="Prd2",1]<-"Prox rd."
-join5[join5$var=="Prd2range",1]<-"Prox rd. range"
-join5[join5$var=="Prd2range",1]<-"Prox rd. range"
-join5[join5$var=="Rug2",1]<-"Rugd."
-join5[join5$var=="Rug2range",1]<-"Rugd. range"
-join5[join5$var=="TempRange",1]<-"Temp. Range"
-join5[join5$var=="tmax..deg.c.",1]<-"Tmax"
-join5[join5$var=="tmaxrange",1]<-"Tmax range"
-join5[join5$var=="tmin..deg.c.",1]<-"Tmin"
-join5[join5$var=="tminrange",1]<-"Tmin range"
+Rename_LC=function(df,col,lc_df){
+  for(i in 1:nrow(df)){
+    if(length(grep("lc",df[i,col]))>0){
+      lcnam=lc_df[which(lc_df$vals==stringr::str_sub(df[i,col],-2L)),3]
+      if(length(grep("mean",df[i,col]))>0){
+        df[i,col]=paste("mean",lcnam,sep=" ")
+      }
+      if(length(grep("var",df[i,col]))>0){
+        df[i,col]=paste("var",lcnam,sep=" ")
+      }
+      
+      }
+  }
+  return(df)
+}
+
+join5=Rename_LC(join5,1,lc_df)
 
 #Make heat map with proportional rel infl.
 ggplot(join5, aes(name, var, fill= value)) + 
@@ -546,19 +463,6 @@ ggplot(join5, aes(name, var, fill= value)) +
         legend.title = element_text("Arial", "bold", size=12),
         axis.text=element_text(size=12),
         legend.text=element_text(size=12))
-
-#Neaten var names for plots
-rel.inf.sl=neaten.var.names.full(rel.inf.sl)
-rel.inf.sigma.sl=neaten.var.names.full(rel.inf.sigma.sl)
-rel.inf.disp=neaten.var.names.full(rel.inf.disp)
-rel.inf.sigma.disp=neaten.var.names.full(rel.inf.sigma.disp)
-rel.inf.tenavg=neaten.var.names.full(rel.inf.tenavg)
-
-rel.inf.sl_region=neaten.var.names.full(rel.inf.sl_region)
-rel.inf.sigma.sl_region=neaten.var.names.full(rel.inf.sigma.sl_region)
-rel.inf.disp_region=neaten.var.names.full(rel.inf.disp_region)
-rel.inf.sigma.disp_region=neaten.var.names.full(rel.inf.sigma.disp_region)
-rel.inf.tenavg_region=neaten.var.names.full(rel.inf.tenavg_region)
 
 #remove variables with 0 influence from tables (full models)
 RemoveZeroInfluence=function(relinftbl){
@@ -574,11 +478,9 @@ rel.inf.disp=RemoveZeroInfluence(rel.inf.disp)
 rel.inf.disp_region=RemoveZeroInfluence(rel.inf.disp_region)
 rel.inf.sigma.disp=RemoveZeroInfluence(rel.inf.sigma.disp)
 rel.inf.sigma.disp_region=RemoveZeroInfluence(rel.inf.sigma.disp_region)
-rel.inf.tenavg=RemoveZeroInfluence(rel.inf.tenavg)
-rel.inf.tenavg_region=RemoveZeroInfluence(rel.inf.tenavg_region)
 
 #make formatted rel influence plots
-ri.sl.random=ggplot(rel.inf.sl, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
+ri.sl=ggplot(rel.inf.sl, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
   geom_bar(stat="identity",show.legend=FALSE)+
   coord_flip()+
   labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
@@ -586,16 +488,7 @@ ri.sl.random=ggplot(rel.inf.sl, aes(x = reorder(var,rel.inf), y = rel.inf, fill=
   theme_minimal()+
   theme(text = element_text(size = 28))
 
-ri.sl.region=ggplot(rel.inf.sl_region, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
-  geom_bar(stat="identity",show.legend=FALSE)+
-  coord_flip()+
-  labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
-  scale_fill_viridis_c(begin=0.2,end=0.4,option="magma")+
-  theme_minimal()+
-  theme(text = element_text(size = 28))
-
-
-ri.sigmasl.random=ggplot(rel.inf.sigma.sl, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
+ri.sigmasl=ggplot(rel.inf.sigma.sl, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
   geom_bar(stat="identity",show.legend=FALSE)+
   coord_flip()+
   labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
@@ -603,15 +496,7 @@ ri.sigmasl.random=ggplot(rel.inf.sigma.sl, aes(x = reorder(var,rel.inf), y = rel
   theme_minimal()+
   theme(text = element_text(size = 28))
 
-ri.sigmasl.region=ggplot(rel.inf.sigma.sl_region, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
-  geom_bar(stat="identity",show.legend=FALSE)+
-  coord_flip()+
-  labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
-  scale_fill_viridis_c(begin=0.2,end=0.4,option="magma")+
-  theme_minimal()+
-  theme(text = element_text(size = 28))
-
-ri.disp.random=ggplot(rel.inf.disp, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
+ri.disp=ggplot(rel.inf.disp, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
   geom_bar(stat="identity",show.legend=FALSE)+
   coord_flip()+
   labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
@@ -619,15 +504,7 @@ ri.disp.random=ggplot(rel.inf.disp, aes(x = reorder(var,rel.inf), y = rel.inf, f
   theme_minimal()+
   theme(text = element_text(size = 28))
 
-ri.disp.region=ggplot(rel.inf.disp_region, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
-  geom_bar(stat="identity",show.legend=FALSE)+
-  coord_flip()+
-  labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
-  scale_fill_viridis_c(begin=0.2,end=0.4,option="magma")+
-  theme_minimal()+
-  theme(text = element_text(size = 28))
-
-ri.sigmadisp.random=ggplot(rel.inf.sigma.disp, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
+ri.sigmadisp=ggplot(rel.inf.sigma.disp, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
   geom_bar(stat="identity",show.legend=FALSE)+
   coord_flip()+
   labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
@@ -635,59 +512,12 @@ ri.sigmadisp.random=ggplot(rel.inf.sigma.disp, aes(x = reorder(var,rel.inf), y =
   theme_minimal()+
   theme(text = element_text(size = 28))
 
-ri.sigmadisp.region=ggplot(rel.inf.sigma.disp_region, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
-  geom_bar(stat="identity",show.legend=FALSE)+
-  coord_flip()+
-  labs(x="Independent variables", y="Relative Influence", fill="Rel. Inf.")+
-  scale_fill_viridis_c(begin=0.2,end=0.4,option="magma")+
-  theme_minimal()+
-  theme(text = element_text(size = 28))
-
-ri.tenavg.random=ggplot(rel.inf.tenavg, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
-  geom_bar(stat="identity")+
-  coord_flip()+
-  labs(x="Independent variables", y="Relative Influence")+
-  theme_minimal()+
-  theme(text = element_text(size = 28))
-
-ri.tenavg.region=ggplot(rel.inf.tenavg_region, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
-  geom_bar(stat="identity",show.legend=FALSE)+
-  coord_flip()+
-  labs(x="Independent variables", y="Relative Influence")+
-  scale_fill_viridis_c(begin=0.3,end=0.4,option="magma")+
-  theme_minimal()+
-  theme(text = element_text(size = 28))
-
 #make plotgrids
 relinf.pg=plot_grid(
-  ri.sl.random,
-  ri.sl.region,
-  ri.sigmasl.random,
-  ri.sigmasl.region,
-  ri.disp.random,
-  ri.disp.region,
-  ri.sigmadisp.random,
-  ri.sigmadisp.region,
-  ncol = 2,
-  labels=c("a","b","c","d","e","f","g","h"),
-  label_size=50
-)
-
-relinf.pg.sl=plot_grid(
-  ri.sl.random,
-  ri.sl.region,
-  ri.sigmasl.random,
-  ri.sigmasl.region,
-  ncol = 2,
-  labels=c("a","b","c","d"),
-  label_size=50
-)
-
-relinf.pg.disp=plot_grid(
-  ri.disp.random,
-  ri.disp.region,
-  ri.sigmadisp.random,
-  ri.sigmadisp.region,
+  ri.sl,
+  ri.sigmasl,
+  ri.disp,
+  ri.sigmadisp,
   ncol = 2,
   labels=c("a","b","c","d"),
   label_size=50
@@ -695,19 +525,10 @@ relinf.pg.disp=plot_grid(
 
 png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/rel_infl_charts/relinfplots_08MAY_sl.png",sep="/"),
     width=2550, height=2550)
-relinf.pg.sl
+relinf.pg
 dev.off()
 
-png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/rel_infl_charts/relinfplots_08MAY_disp.png",sep="/"),
-    width=2550, height=2550)
-relinf.pg.disp
-dev.off()
-
-
-
-
-
-
+# Partial dependence plots -----------------
 
 numplots=12
 #Make partial dependence plots for each response top model, top 12
@@ -721,14 +542,15 @@ MakePdpGrid(numplots,rel.inf.sigma.disp_region,gbm.sigma.disp_region,pigsums2,si
 
 #MakePdpGrid(numplots,rel.inf.tenavg_region,gbm.tenavg_region,pigsums2,tenavg.opt.params.kfold_region,c(-0.5,0.5))
 
-#######################################################
-  
+
 #gbm.interactions(gbm.disp_region)
 
 
 names(gbm.sl$gbm.call)[1] <- "dataframe"
 names(gbm.sigma.sl$gbm.call)[1] <- "dataframe"
 names(gbm.disp$gbm.call)[1] <- "dataframe"
+
+# Cross-validation stats, region vs. random -----------------
 
 #Get RMSE and R2 values for out of site/sample predictions
 
@@ -974,7 +796,7 @@ ggarrange(sl.r2.dot,
           ncol=2,nrow=2,labels=c("a","b","c","d"), 
           font.label=list(size=45,face="bold"))
 
-#####Pred vs obs plots!
+# Pred vs obs plots -----------------
 
 #format prediction/test sets into dataframe for plotting
 sl_predobs.df=CombinePredObs(CVstats_sl.random,CVstats_sl.region)
@@ -1114,7 +936,7 @@ png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/pred_obs_scatters/
 sigmadisp.po.scat
 dev.off()
 
-#########
+# Density plots -----------------
 
 sl_predobs.df2[sl_predobs.df2$name=="test",3]<-"observed"
 sl_predobs.df2[sl_predobs.df2$name=="preds",3]<-"predicted"
@@ -1190,7 +1012,7 @@ ggarrange(sl.dens,
           font.label=list(size=45,face="bold"))
 dev.off()
 
-####Violin plots
+# Violin plots -----------------------------
 
 #do join with new ID.tbl to get new IDs replaced
 pigsums3=left_join(pigsums2,newID.tbl,by="region")
@@ -1230,84 +1052,6 @@ p4=ggplot(pigsums3, aes(x=fct_inorder(region), y=sigma_disp)) +
 ggarrange(p1,p2,p3,p4,nrow=2,ncol=2,labels="auto",font.label=list(size=50,face="bold"),hjust=-0.2, vjust=1)
 
 
-
-
-#scratch
-######################################################3
-
-
-density_grid.sl=MakePlotGrid(sl_predobs.df2,region.counts)
-density_grid.disp=MakePlotGrid(disp_predobs.df2,region.counts)
-density_grid.sl
-
-#step length sigma
-ggplot() + 
-  geom_point(aes(y=df.sigma.sl$preds, x=df.sigma.sl$obs), color="black",size=0.5,alpha=1)+
-  geom_abline(intercept = 0, slope = 1)+
-  xlim(0,3)+
-  ylim(0,3)
-
-sigma.sl_predobs.df2%>%
-  ggplot(aes(x=value, fill=name)) +
-  geom_density(alpha=0.3)+ 
-  labs(x= "Step Length")
-
-ggplot() + 
-  geom_point(aes(y=disp_predobs.df$preds, x=disp_predobs.df$test), color="black",size=0.5,alpha=1)+
-  geom_abline(intercept = 0, slope = 1)+
-  xlim(0,20000)+
-  ylim(0,20000)+
-  facet_wrap(vars(disp_predobs.df$region))
-
-disp_predobs.df2%>%
-  ggplot(aes(x=value, fill=name)) +
-  geom_density(alpha=0.3)+ 
-  scale_x_log10()+
-  labs(x= "Step Length")
-
-ggplot() + 
-  geom_point(aes(y=df.sigma.disp$preds, x=df.sigma.disp$obs), color="black",size=0.5,alpha=1)+
-  geom_abline(intercept = 0, slope = 1)+
-  xlim(0,3)+
-  ylim(0,3)
-
-df2.sigma.disp%>%
-  ggplot(aes(x=value, fill=name)) +
-  geom_density(alpha=0.3)+ 
-  scale_x_log10()+
-  labs(x= "Step Length")
-
-ggplot() + 
-  geom_point(aes(y=df.tenavg$preds, x=df.tenavg$obs), color="black",size=0.5,alpha=1)+
-  geom_abline(intercept = 0, slope = 1)+
-  xlim(0,22000)+
-  ylim(0,22000)
-
-df2.tenavg%>%
-  ggplot(aes(x=value, fill=name)) +
-  geom_density(alpha=0.3)+ 
-  scale_x_log10()+
-  labs(x= "Step Length")
-
-#coord with lexi on resource selection stuff
-
-
-
-
-gbm.sl.int=gbm.interactions(gbm.sl)
-gbm.sl.int$rank.list
-
-gbm.sigmasl.int=gbm.interactions(gbm.sigma.sl)
-gbm.sigmasl.int$rank.list
-
-gbm.disp.int=gbm.interactions(gbm.disp)
-gbm.disp.int$rank.list
-
-pd <- partial(gbm.sl_region, pred.var = c("LCsums", "TCrange"),train=pigsums2,n.trees=disp.opt.params.kfold$n.trees)
-pdp::partial
-
-pd <- partial(gbm.tenavg_region, pred.var = c("LCsums", "TCrange"),train=pigsums2,n.trees=disp.opt.params.kfold$n.trees)
-plotPartial(pd,train=pigsums2,rug=TRUE)
 
 
 
