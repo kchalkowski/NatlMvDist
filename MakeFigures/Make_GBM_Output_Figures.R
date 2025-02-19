@@ -780,11 +780,6 @@ dev.off()
 
 # Violin plots -----------------------------
 
-#do join with new ID.tbl to get new IDs replaced
-pigsums3=left_join(pigsums2,newID.tbl,by="region")
-pigsums3$region=pigsums3$ID
-pigsums3=pigsums3[order(as.numeric(pigsums3$region)),]
-
 p1=ggplot(pigsums3, aes(x=fct_inorder(region), y=sl_)) + 
   geom_violin() + 
   coord_flip() + 
@@ -809,14 +804,12 @@ p4=ggplot(pigsums3, aes(x=fct_inorder(region), y=sigma_disp)) +
   geom_jitter(height=0,width=0.2,alpha=0.5) + theme(text = element_text(size = 40))+
   labs(x="study", y="average daily displacement dispersion")
 
-#p5=ggplot(pigsums2, aes(x=fct_inorder(num), y=tenavg)) + 
-#  geom_violin() + 
-#  coord_flip() + 
-#  geom_jitter(height=0,width=0.2,alpha=0.5) + theme(text = element_text(size = 40))+
-#  labs(x="study", y="average of top ten percent of daily average step lengths")
+path=file.path(outdir,filestr,"FigTab","violin_plots")
 
+png(file=file.path(path,"violin_grid.png"),
+    width=1000, height=1000)
 ggarrange(p1,p2,p3,p4,nrow=2,ncol=2,labels="auto",font.label=list(size=50,face="bold"),hjust=-0.2, vjust=1)
-
+dev.off()
 
 
 
