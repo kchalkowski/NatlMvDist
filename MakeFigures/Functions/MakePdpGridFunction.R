@@ -7,8 +7,7 @@
 #ylims=c(-0.3,0.3)
 
 #####Making above loop into a function for repeated use
-MakePdpGrid<-function(numplots,rel.inf,gbm.object,data,opt.params,ylims){
-  source(paste0(home,"/Scripts_Polished/Making_Plots_Tables/PlotFunctions/multiplotfunction.R"))
+MakePdpGrid<-function(numplots,rel.inf,gbm.object,data,opt.params,ylims,path){
   myplots <- vector('list', length=numplots) #initiate empty plotlist
   vars=rownames(rel.inf)[1:numplots] #set vector of top numplots most important vars
   varneat=rel.inf[1:12,1]
