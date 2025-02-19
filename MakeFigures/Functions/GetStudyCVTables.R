@@ -1,4 +1,7 @@
 #The purpose of this script is to define a set of functions to get CV stats for each individual out-of-sample prediction by study
+#CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf)
+
+
 
 MakeSitePredSets=function(dataset,X.vec,response,opt.params,family){
   ksplits=k_split_group(dataset,"region")
@@ -43,23 +46,21 @@ Get_OutofSite_CVstats<-function(predset,type){
   }
   return(CVstats)
 }
+
+#CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf)
 #pigsums2,X_vec.start,"sl_",sl.opt.params.kfold,"poisson","random",studydf
+dataset=pigsums_sigmasl
+X.vec=X_vec_list$sigmasl
+response="sl_disp"
+opt.params=sigma.sl.opt.params.kfold
+family="gaussian"
+CVtype="random"
+studydf=studydf
 GetCVStats_Table<-function(dataset,X.vec,response,opt.params,family,CVtype,studydf){
 region.pred.set=MakeSitePredSets(dataset,X.vec,response,opt.params,family)
 CV_table=Get_OutofSite_CVstats(region.pred.set,CVtype)
-CV_table.3=left_join(CV_table,studydf,by="region")
-#CV_table.3=CV_table.2[,-5]
 
-meanRMSE=mean(CV_table.3[,2])
-meanR2=mean(CV_table.3[,3])
-
-mean.df=data.frame("MEANS",meanRMSE,meanR2,CVtype,NA)
-colnames(mean.df)=colnames(CV_table.3)
-
-CV_table.4=rbind(CV_table.3,mean.df)
-
-output.list=list(CV_table.4,region.pred.set)
-return(output.list)
+return(CV_table)
 }
 
 
