@@ -89,18 +89,11 @@ gbm.sigma.disp=gbm.fixed(data=pigsums_sigmadisp, gbm.x=X_vec_list$sigmadisp, gbm
                          bag.fraction=sigma.disp.opt.params.kfold$bag.fraction,
                          family="gaussian") 
 
-# Predictions for male/female -----------------------
+# Predictions -----------------------
 
 ## Function for predictions ------------------
 # get predictions for each response, each quarter, male and female
 # average male/female predictions
-
-## working -------
-#fix colnames to match pigsums
-#this will go in function
-
-
-######
 
 AvgWashPreds<-function(gbm.mod,wash,opt.params,response){
   #split by quarter
@@ -152,7 +145,7 @@ AvgWashPreds<-function(gbm.mod,wash,opt.params,response){
    return(predmat)
 }
 
-#Get predictions
+## Get predictions -----------------------
 pred_sl=AvgWashPreds(gbm.sl,wash,sl.opt.params.kfold,"sl")
 pred_sigmasl=AvgWashPreds(gbm.sigma.sl,wash,sigma.sl.opt.params.kfold,"sigma_sl")
 pred_disp=AvgWashPreds(gbm.disp,wash,disp.opt.params.kfold,"disp")
@@ -160,36 +153,26 @@ pred_sigmadisp=AvgWashPreds(gbm.sigma.disp,wash,sigma.disp.opt.params.kfold,"sig
   
 # Add mean predictions to watersheds --------------
 
-#add preds to washq1
-washq1$pred.sl<-pred.sl.q1
-washq1$pred.sigma.sl<-pred.sigma.sl.q1
-washq1$pred.disp<-pred.disp.q1
-washq1$pred.sigma.disp<-pred.sigma.disp.q1
+washp=wash
+washp=cbind(washp,pred_sl)
+strings=paste0("sl_q",1:4)
+colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 
-#add preds to washq2
-washq2$pred.sl<-pred.sl.q2
-washq2$pred.sigma.sl<-pred.sigma.sl.q2
-washq2$pred.disp<-pred.disp.q2
-washq2$pred.sigma.disp<-pred.sigma.disp.q2
+washp=cbind(washp,pred_sigmasl)
+strings=paste0("sigmasl_q",1:4)
+colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 
-#add preds to washq3
-washq3$pred.sl<-pred.sl.q3
-washq3$pred.sigma.sl<-pred.sigma.sl.q3
-washq3$pred.disp<-pred.disp.q3
-washq3$pred.sigma.disp<-pred.sigma.disp.q3
+washp=cbind(washp,pred_disp)
+strings=paste0("sigmadisp_q",1:4)
+colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 
-#add preds to washq4
-washq4$pred.sl<-pred.sl.q4
-washq4$pred.sigma.sl<-pred.sigma.sl.q4
-washq4$pred.disp<-pred.disp.q4
-washq4$pred.sigma.disp<-pred.sigma.disp.q4
+washp=cbind(washp,pred_sigmadisp)
+strings=paste0("disp_q",1:4)
+colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 
-#save the watershed files with the predictions
-#write out sf objects with preds
-st_write(washq1,paste0(home,"/Data/washq1_preds21APR23.shp"),append=FALSE)
-st_write(washq2,paste0(home,"/Data/washq2_preds21APR23.shp"),append=FALSE)
-st_write(washq3,paste0(home,"/Data/washq3_preds21APR23.shp"),append=FALSE)
-st_write(washq4,paste0(home,"/Data/washq4_preds21APR23.shp"),append=FALSE)
+# Save wash with predictions --------------
+
+saveRDS(washp,file.path(objdir,"wash_preds.rds"))
 
 # Plot prediction maps ------------------------
 #get helper shapefiles
