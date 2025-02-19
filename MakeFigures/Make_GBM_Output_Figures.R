@@ -621,47 +621,17 @@ CVstats_sigma.sl.region=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_
 CVstats_disp.region=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","region",studydf,"all")
 CVstats_sigma.disp.region=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","region",studydf,"all")
 
-
 #format prediction/test sets into dataframe for plotting
 sl_predobs.df=CombinePredObs(CVstats_sl.random,CVstats_sl.region)
 sigma.sl_predobs.df=CombinePredObs(CVstats_sigma.sl.random,CVstats_sigma.sl.region)
 disp_predobs.df=CombinePredObs(CVstats_disp.random,CVstats_disp.region)
 sigma.disp_predobs.df=CombinePredObs(CVstats_sigma.disp.random,CVstats_sigma.disp.region)
 
-#force single digits to go after 10 when character
-newID.tbl[newID.tbl$ID==1,2]<-"01"
-newID.tbl[newID.tbl$ID==2,2]<-"02"
-newID.tbl[newID.tbl$ID==3,2]<-"03"
-newID.tbl[newID.tbl$ID==4,2]<-"04"
-newID.tbl[newID.tbl$ID==5,2]<-"05"
-newID.tbl[newID.tbl$ID==6,2]<-"06"
-newID.tbl[newID.tbl$ID==7,2]<-"07"
-newID.tbl[newID.tbl$ID==8,2]<-"08"
-newID.tbl[newID.tbl$ID==9,2]<-"09"
-
-#do join with new ID.tbl to get new IDs replaced
-sl_predobs.df=left_join(sl_predobs.df,newID.tbl,by="region")
-sl_predobs.df$region=sl_predobs.df$ID
-sl_predobs.df=sl_predobs.df[order(as.numeric(sl_predobs.df$region)),]
-
-sigma.sl_predobs.df=left_join(sigma.sl_predobs.df,newID.tbl,by="region")
-sigma.sl_predobs.df$region=sigma.sl_predobs.df$ID
-sigma.sl_predobs.df=sigma.sl_predobs.df[order(as.numeric(sigma.sl_predobs.df$region)),]
-
-disp_predobs.df=left_join(disp_predobs.df,newID.tbl,by="region")
-disp_predobs.df$region=disp_predobs.df$ID
-disp_predobs.df=disp_predobs.df[order(as.numeric(disp_predobs.df$region)),]
-
-sigma.disp_predobs.df=left_join(sigma.disp_predobs.df,newID.tbl,by="region")
-sigma.disp_predobs.df$region=sigma.disp_predobs.df$ID
-sigma.disp_predobs.df=sigma.disp_predobs.df[order(as.numeric(sigma.disp_predobs.df$region)),]
-
 #format for plotting histograms
 sl_predobs.df2=as.data.frame(pivot_longer(sl_predobs.df,cols=c("test","preds")))
 sigma.sl_predobs.df2=as.data.frame(pivot_longer(sigma.sl_predobs.df,cols=c("test","preds")))
 disp_predobs.df2=as.data.frame(pivot_longer(disp_predobs.df,cols=c("test","preds")))
 sigma.disp_predobs.df2=as.data.frame(pivot_longer(sigma.disp_predobs.df,cols=c("test","preds")))
-#tenavg_predobs.df2=as.data.frame(pivot_longer(tenavg_predobs.df,cols=c("test","preds")))
 
 
 #get scatter plots
@@ -721,39 +691,24 @@ sigmadisp.po.scat=ggplot(sigma.disp_predobs.df, aes(test, preds, color = factor(
   theme(axis.text.x = element_text(size=10),
         axis.text.y = element_text(size=9))
 
+path=file.path(outdir,filestr,"FigTab","pred_obs_scatters")
 
-#tenavg.po.scat=ggplot(tenavg_predobs.df, aes(test, preds, color = factor(region))) + 
-#  geom_point(aes(color=factor(CVmethod)), size=0.5, alpha=1)+
-#  geom_abline(intercept = 0, slope = 1)+
-#  xlim(0,10000)+
-#  ylim(0,10000)+
-#  theme_minimal()+
-#  facet_wrap(vars(region))+
-#  geom_mark_ellipse(aes(color = factor(CVmethod)))+
-#  scale_color_manual(values=c("#039e8c", "#832b9e"), name="CV method")+
-#  labs(x="observed", y="predicted")+
-#  theme(text = element_text(size = 12))+
-#  theme(axis.text.x = element_text(angle = 90, size=10),
-#        axis.text.y = element_text(size=9))
-
-#tenavg.po.scat
-
-png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/pred_obs_scatters/sl_po_scatter_26APR23.png",sep="/"),
+png(file=file.path(path,"sl_po_scatter.png"),
     width=770, height=730)
 sl.po.scat 
 dev.off()
 
-png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/pred_obs_scatters/sigmasl_po_scatter_26APR23.png",sep="/"),
+png(file=file.path(path,"sigmasl_po_scatter.png"),
     width=770, height=730)
 sigmasl.po.scat
 dev.off()
 
-png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/pred_obs_scatters/disp_po_scatter_26APR23.png",sep="/"),
+png(file=file.path(path,"disp_po_scatter.png"),
     width=770, height=730)
 disp.po.scat
 dev.off()
 
-png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/pred_obs_scatters/sigmadisp_po_scatter_26APR23.png",sep="/"),
+png(file=file.path(path,"sigmadisp_po_scatter.png"),
     width=770, height=730)
 sigmadisp.po.scat
 dev.off()
