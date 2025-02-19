@@ -34,6 +34,7 @@ home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/Sta
 outdir=file.path(home,"4_Outputs")
 funcdir<-file.path(home,"1_Scripts","MakeFigures","Functions")
 filestr<-"TestRuns"
+objdir<-file.path(home,"2_Data","Objects")
 
 #read in pigsums dataset
 pigsums<-readRDS(file.path(home,"2_Data","Objects","dailyPigSums.rds"))
@@ -309,7 +310,6 @@ getXvec<-function(model.sel.tbl.total,out.opt){
   X_sel=data.frame(matrix(nrow=4,ncol=4))
   colnames(X_sel)<-c("response","X_vec","reg_ran","vars")
 
-    
     for(i in 1:nrow(model.sel.tbl.total)){
       X_sel[i,1]=rownames(model.sel.tbl.total)[i]
       c_ind=which(model.sel.tbl.total[i,]==min(model.sel.tbl.total[i,]))
@@ -812,7 +812,8 @@ ggarrange(p1,p2,p3,p4,nrow=2,ncol=2,labels="auto",font.label=list(size=50,face="
 dev.off()
 
 
-
-
+#Write any final output needed as objects ---------
+saveRDS(X_sel,file.path(objdir,"X_sel.rds"))
+saveRDS(X_vec_list,file.path(objdir,"X_vec_list.rds"))
 
 
