@@ -34,180 +34,130 @@ objdir<-file.path(home,"2_Data","Objects")
 
 #read in pigsums dataset
 pigsums<-readRDS(file.path(objdir,"dailyPigSums.rds"))
-pigswsite<-read.csv(paste0(home,"/Data/PigsDisplaceJan.csv"))
+pigswsite<-readRDS(file.path(objdir,"geolocsnatl_wDispl.rds"))
 
-#Read in formatted quarterly watersheds shapefiles
-washq1 <- readOGR(dsn = "./Data", layer = "washq1_tidy_12APR23")
-washq2 <- readOGR(dsn = "./Data", layer = "washq2_tidy_12APR23")
-washq3 <- readOGR(dsn = "./Data", layer = "washq3_tidy_12APR23")
-washq4 <- readOGR(dsn = "./Data", layer = "washq4_tidy_12APR23")
+#Read in formatted wastershed shapefile
+wash<-readRDS(file.path(objdir,"wash_envcov_final.rds"))
 
-#read in optimal hyperparameter sets according to which was best model
+#Read in X sel table/X vec list
+X_sel=readRDS(file.path(objdir,"X_sel.rds"))
+X_vec_list=readRDS(file.path(objdir,"X_vec_list.rds"))
 
 #read in optimal hyperparameter sets
-#step length region:
-sl.opt.params.kfold_region=read.csv(paste0(outdir,"/05APR23_Runs/Region/sl_bestmodelparams.csv"))
-#sigma sl random:
-sigma.sl.opt.params.kfold=read.csv(paste0(outdir,"/05APR23_Runs/Random/sigma.sl_bestmodelparams.csv"))
-#displacement random:
-disp.opt.params.kfold=read.csv(paste0(outdir,"/05APR23_Runs/Random/disp_bestmodelparams.csv"))
-#sigma disp region:
-sigma.disp.opt.params.kfold_region=read.csv(paste0(outdir,"/05APR23_Runs/Region/disp_bestmodelparams.csv"))
-#tenavg region:
-tenavg.opt.params.kfold_region=read.csv(paste0(outdir,"/05APR23_Runs/Region/tenavg_bestmodelparams.csv"))
-
-#read in environmental covariate sets:
-X.vec.disp.01drop=read.csv(paste0(outdir,"/05APR23_Runs/Random/X_vec_01Drop/Xdisp.csv"))
-X.vec.disp.01drop=X.vec.disp.01drop[,-(1)]
-
-X_vec.start=c(3,4,6:14,20,22:36,39:49)
+sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"sl_bestmodelparams.csv"))
+sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[2,3],"sigma.sl_bestmodelparams.csv"))
+disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"disp_bestmodelparams.csv"))
+sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
 
 ## format data -------
 
 #format pigsums data
 
 #format watersheds shapefiles
-washq1<-st_as_sf(washq1)
-washq1 <- st_cast(washq1, "POLYGON")
-
-washq2<-st_as_sf(washq2)
-washq2 <- st_cast(washq2, "POLYGON")
-
-washq3<-st_as_sf(washq3)
-washq3 <- st_cast(washq3, "POLYGON")
-
-washq4<-st_as_sf(washq4)
-washq4 <- st_cast(washq4, "POLYGON")
-
+#wash2<-st_as_sf(wash)
+#wash2 <- st_cast(wash2, "POLYGON")
 
 #Separate wash q's into m/f for separate analysis
-washq1.f=washq1
-washq1.m=washq1
-washq1.f$sex=as.factor("Female")
-washq1.m$sex=as.factor("Male")
-
-washq2.f=washq2
-washq2.m=washq2
-washq2.f$sex=as.factor("Female")
-washq2.m$sex=as.factor("Male")
-
-washq3.f=washq3
-washq3.m=washq3
-washq3.f$sex=as.factor("Female")
-washq3.m$sex=as.factor("Male")
-
-washq4.f=washq4
-washq4.m=washq4
-washq4.f$sex=as.factor("Female")
-washq4.m$sex=as.factor("Male")
-
+washf=wash
+washm=wash
+washf$sex=as.factor("Female")
+washm$sex=as.factor("Male")
 
 # Run GBM models ----------------------------
-
-#run models
-gbm.sl=gbm.fixed(data=pigsums2, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sl_"),
-                 learning.rate=sl.opt.params.kfold_region$learning.rate, 
-                 tree.complexity=sl.opt.params.kfold_region$tree.complexity, 
-                 n.trees=sl.opt.params.kfold_region$n.trees,
-                 bag.fraction=sl.opt.params.kfold_region$bag.fraction,
+gbm.sl=gbm.fixed(data=pigsums_sl, gbm.x=X_vec_list$Xsl, gbm.y=which(colnames(pigsums_sl)=="sl_mean"),
+                 learning.rate=sl.opt.params.kfold$learning.rate, 
+                 tree.complexity=sl.opt.params.kfold$tree.complexity, 
+                 n.trees=sl.opt.params.kfold$n.trees,
+                 bag.fraction=sl.opt.params.kfold$bag.fraction,
                  family="poisson") 
-
-gbm.sigma.sl=gbm.fixed(data=cutoff_sl, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sigma_sl"),
-                       learning.rate=sigma.sl.opt.params.kfold$learning.rate, 
-                       tree.complexity=sigma.sl.opt.params.kfold$tree.complexity, 
-                       n.trees=sigma.sl.opt.params.kfold$n.trees,
-                       bag.fraction=sigma.sl.opt.params.kfold$bag.fraction,
-                       family="gaussian") 
-
-gbm.disp=gbm.fixed(data=pigsums2, gbm.x=X.vec.disp.01drop, gbm.y=which(colnames(pigsums)=="displacement"),
+gbm.disp=gbm.fixed(data=pigsums_displ, gbm.x=X_vec_list$Xdisp, gbm.y=which(colnames(pigsums)=="displ_mean"),
                    learning.rate=disp.opt.params.kfold$learning.rate, 
                    tree.complexity=disp.opt.params.kfold$tree.complexity, 
                    n.trees=disp.opt.params.kfold$n.trees,
                    bag.fraction=disp.opt.params.kfold$bag.fraction,
                    family="poisson") 
-
-gbm.sigma.disp=gbm.fixed(data=cutoff_sl, gbm.x=X_vec.start, gbm.y=which(colnames(pigsums)=="sigma_disp"),
-                   learning.rate=sigma.disp.opt.params.kfold_region$learning.rate, 
-                   tree.complexity=sigma.disp.opt.params.kfold_region$tree.complexity, 
-                   n.trees=sigma.disp.opt.params.kfold_region$n.trees,
-                   bag.fraction=sigma.disp.opt.params.kfold_region$bag.fraction,
-                   family="gaussian") 
+gbm.sigma.sl=gbm.fixed(data=pigsums_sigmasl, gbm.x=X_vec_list$sigmasl, gbm.y=which(colnames(pigsums)=="sl_disp"),
+                       learning.rate=sigma.sl.opt.params.kfold$learning.rate, 
+                       tree.complexity=sigma.sl.opt.params.kfold$tree.complexity, 
+                       n.trees=sigma.sl.opt.params.kfold$n.trees,
+                       bag.fraction=sigma.sl.opt.params.kfold$bag.fraction,
+                       family="gaussian") 
+gbm.sigma.disp=gbm.fixed(data=pigsums_sigmadisp, gbm.x=X_vec_list$sigmadisp, gbm.y=which(colnames(pigsums)=="displ_disp"),
+                         learning.rate=sigma.disp.opt.params.kfold$learning.rate, 
+                         tree.complexity=sigma.disp.opt.params.kfold$tree.complexity, 
+                         n.trees=sigma.disp.opt.params.kfold$n.trees,
+                         bag.fraction=sigma.disp.opt.params.kfold$bag.fraction,
+                         family="gaussian") 
 
 # Predictions for male/female -----------------------
 
-#step length per quarter male
-pred.sl.q1.m <- predict.gbm(gbm.sl, washq1.m, n.trees=sl.opt.params.kfold_region$n.trees, "response")
-pred.sl.q2.m <- predict.gbm(gbm.sl, washq2.m, n.trees=sl.opt.params.kfold_region$n.trees, "response")
-pred.sl.q3.m <- predict.gbm(gbm.sl, washq3.m, n.trees=sl.opt.params.kfold_region$n.trees, "response")
-pred.sl.q4.m <- predict.gbm(gbm.sl, washq4.m, n.trees=sl.opt.params.kfold_region$n.trees, "response")
+## Function for predictions ------------------
+# get predictions for each response, each quarter, male and female
+# average male/female predictions
 
-#step length per quarter female
-pred.sl.q1.f <- predict.gbm(gbm.sl, washq1.f, n.trees=sl.opt.params.kfold_region$n.trees, "response")
-pred.sl.q2.f <- predict.gbm(gbm.sl, washq2.f, n.trees=sl.opt.params.kfold_region$n.trees, "response")
-pred.sl.q3.f <- predict.gbm(gbm.sl, washq3.f, n.trees=sl.opt.params.kfold_region$n.trees, "response")
-pred.sl.q4.f <- predict.gbm(gbm.sl, washq4.f, n.trees=sl.opt.params.kfold_region$n.trees, "response")
-
-#combine quarterly estimates into matrix to get means
-pred.sl.q1=rowMeans(cbind(pred.sl.q1.m,pred.sl.q1.f))
-pred.sl.q2=rowMeans(cbind(pred.sl.q2.m,pred.sl.q2.f))
-pred.sl.q3=rowMeans(cbind(pred.sl.q3.m,pred.sl.q3.f))
-pred.sl.q4=rowMeans(cbind(pred.sl.q4.m,pred.sl.q4.f))
-
-#sigma step length per quarter f
-pred.sigma.sl.q1.m <- predict.gbm(gbm.sigma.sl, washq1.m, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-pred.sigma.sl.q2.m <- predict.gbm(gbm.sigma.sl, washq2.m, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-pred.sigma.sl.q3.m <- predict.gbm(gbm.sigma.sl, washq3.m, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-pred.sigma.sl.q4.m <- predict.gbm(gbm.sigma.sl, washq4.m, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-
-#sigma step length per quarter f
-pred.sigma.sl.q1.f <- predict.gbm(gbm.sigma.sl, washq1.f, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-pred.sigma.sl.q2.f <- predict.gbm(gbm.sigma.sl, washq2.f, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-pred.sigma.sl.q3.f <- predict.gbm(gbm.sigma.sl, washq3.f, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-pred.sigma.sl.q4.f <- predict.gbm(gbm.sigma.sl, washq4.f, n.trees=sigma.sl.opt.params.kfold$n.trees, "response")
-
-#combine quarterly estimates into matrix to get means
-pred.sigma.sl.q1=rowMeans(cbind(pred.sigma.sl.q1.m,pred.sigma.sl.q1.f))
-pred.sigma.sl.q2=rowMeans(cbind(pred.sigma.sl.q2.m,pred.sigma.sl.q2.f))
-pred.sigma.sl.q3=rowMeans(cbind(pred.sigma.sl.q3.m,pred.sigma.sl.q3.f))
-pred.sigma.sl.q4=rowMeans(cbind(pred.sigma.sl.q4.m,pred.sigma.sl.q4.f))
+## working -------
+#fix colnames to match pigsums
+#this will go in function
 
 
-#displacement per quarter male
-pred.disp.q1.m <- predict.gbm(gbm.disp, washq1.m, n.trees=disp.opt.params.kfold$n.trees, "response")
-pred.disp.q2.m <- predict.gbm(gbm.disp, washq2.m, n.trees=disp.opt.params.kfold$n.trees, "response")
-pred.disp.q3.m <- predict.gbm(gbm.disp, washq3.m, n.trees=disp.opt.params.kfold$n.trees, "response")
-pred.disp.q4.m <- predict.gbm(gbm.disp, washq4.m, n.trees=disp.opt.params.kfold$n.trees, "response")
+######
 
-#displacement per quarter female
-pred.disp.q1.f <- predict.gbm(gbm.disp, washq1.f, n.trees=disp.opt.params.kfold$n.trees, "response")
-pred.disp.q2.f <- predict.gbm(gbm.disp, washq2.f, n.trees=disp.opt.params.kfold$n.trees, "response")
-pred.disp.q3.f <- predict.gbm(gbm.disp, washq3.f, n.trees=disp.opt.params.kfold$n.trees, "response")
-pred.disp.q4.f <- predict.gbm(gbm.disp, washq4.f, n.trees=disp.opt.params.kfold$n.trees, "response")
+AvgWashPreds<-function(gbm.mod,wash,opt.params,response){
+  #split by quarter
+    #grep colnames with q in name
+  q_vars=grep("_q",colnames(wash))
+  q1_vars=grep("_q1",colnames(wash))
+  q2_vars=grep("_q2",colnames(wash))
+  q3_vars=grep("_q3",colnames(wash))
+  q4_vars=grep("_q4",colnames(wash))
+  q_list=list(q1_vars,q2_vars,q3_vars,q4_vars)
+  predmat=matrix(nrow=nrow(wash),ncol=4)
+  for(q in 1:4){
+  #colnames(predmat)[q]<-paste(response,q,sep="_")
+  wash_notemporal=wash[,-q_list[[q]]]
+  washq=cbind(wash_notemporal,wash[,q_list[[q]]])
+  
+  #fix names to match pigsums
+  colnames(washq)=gsub("_q[0-9]","",colnames(washq))
+  means=grep("_mn",colnames(washq))
+  colnames(washq)=gsub("_mn","",colnames(washq))
+  colnames(washq)[means]<-paste0("mean_",colnames(washq)[means])
+  
+  vars=grep("_var",colnames(washq))
+  colnames(washq)=gsub("_var","",colnames(washq))
+  colnames(washq)[vars]<-paste0("var_",colnames(washq)[vars])
+  
+  washq$season=as.factor(paste0("q",q))
 
-#combine quarterly estimates into matrix to get means
-pred.disp.q1=rowMeans(cbind(pred.disp.q1.m,pred.disp.q1.f))
-pred.disp.q2=rowMeans(cbind(pred.disp.q2.m,pred.disp.q2.f))
-pred.disp.q3=rowMeans(cbind(pred.disp.q3.m,pred.disp.q3.f))
-pred.disp.q4=rowMeans(cbind(pred.disp.q4.m,pred.disp.q4.f))
+  #Loop through periods
+  predmat_p=matrix(nrow=nrow(wash),ncol=4)
+  for(p in 1:4){
+  washq$period=as.factor(paste0("p",p))
+    
+  washqf=washq
+  washqm=washq
+  washqf$sex=as.factor("Female")
+  washqm$sex=as.factor("Male")
+  
+  pred.q.f <- predict.gbm(gbm.mod, washqf, n.trees=opt.params$n.trees, "response")
+  pred.q.m <- predict.gbm(gbm.mod, washqm, n.trees=opt.params$n.trees, "response")
+  
+  predmat_p[,p]=rowMeans(cbind(pred.q.f,pred.q.m))
+  
+  }
+  
+  predmat[,q]=rowMeans(predmat_p)
+  
+  }
+   return(predmat)
+}
 
-#sigma disp per quarter male
-pred.sigma.disp.q1.m <- predict.gbm(gbm.sigma.disp, washq1.m, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-pred.sigma.disp.q2.m <- predict.gbm(gbm.sigma.disp, washq2.m, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-pred.sigma.disp.q3.m <- predict.gbm(gbm.sigma.disp, washq3.m, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-pred.sigma.disp.q4.m <- predict.gbm(gbm.sigma.disp, washq4.m, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-
-#sigma disp per quarter female
-pred.sigma.disp.q1.f <- predict.gbm(gbm.sigma.disp, washq1.f, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-pred.sigma.disp.q2.f <- predict.gbm(gbm.sigma.disp, washq2.f, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-pred.sigma.disp.q3.f <- predict.gbm(gbm.sigma.disp, washq3.f, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-pred.sigma.disp.q4.f <- predict.gbm(gbm.sigma.disp, washq4.f, n.trees=sigma.disp.opt.params.kfold_region$n.trees, "response")
-
-#combine quarterly estimates into matrix to get means
-pred.sigma.disp.q1=rowMeans(cbind(pred.sigma.disp.q1.m,pred.sigma.disp.q1.f))
-pred.sigma.disp.q2=rowMeans(cbind(pred.sigma.disp.q2.m,pred.sigma.disp.q2.f))
-pred.sigma.disp.q3=rowMeans(cbind(pred.sigma.disp.q3.m,pred.sigma.disp.q3.f))
-pred.sigma.disp.q4=rowMeans(cbind(pred.sigma.disp.q4.m,pred.sigma.disp.q4.f))
-
+#Get predictions
+pred_sl=AvgWashPreds(gbm.sl,wash,sl.opt.params.kfold,"sl")
+pred_sigmasl=AvgWashPreds(gbm.sigma.sl,wash,sigma.sl.opt.params.kfold,"sigma_sl")
+pred_disp=AvgWashPreds(gbm.disp,wash,disp.opt.params.kfold,"disp")
+pred_sigmadisp=AvgWashPreds(gbm.sigma.disp,wash,sigma.disp.opt.params.kfold,"sigma_disp")
+  
 # Add mean predictions to watersheds --------------
 
 #add preds to washq1
