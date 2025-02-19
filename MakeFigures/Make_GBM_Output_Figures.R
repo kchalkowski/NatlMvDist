@@ -552,15 +552,15 @@ MakePdpGrid(numplots,rel.inf.sigma.disp,gbm.sigma.disp,pigsums_sigmadisp,sigma.d
 
 ## Get basic CV tables -----------------
 
-CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf)
-CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf)
-CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf)
-CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf)
+CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf,"CVtbl_only")
+CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
+CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf,"CVtbl_only")
+CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
 
-CVstats_sl.region=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","region",studydf)
-CVstats_sigma.sl.region=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","region",studydf)
-CVstats_disp.region=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","region",studydf)
-CVstats_sigma.disp.region=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","region",studydf)
+CVstats_sl.region=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","region",studydf,"CVtbl_only")
+CVstats_sigma.sl.region=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","region",studydf,"CVtbl_only")
+CVstats_disp.region=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","region",studydf,"CVtbl_only")
+CVstats_sigma.disp.region=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","region",studydf,"CVtbl_only")
 
 #combine CV method sets
 CVstats_sl.total=rbind(CVstats_sl.random,CVstats_sl.region)
@@ -611,6 +611,16 @@ ggarrange(sl.r2.dot,
           font.label=list(size=45,face="bold"))
 
 # Pred vs obs plots -----------------
+CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf,"all")
+CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf,"all")
+CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf,"all")
+CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"all")
+
+CVstats_sl.region=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","region",studydf,"all")
+CVstats_sigma.sl.region=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","region",studydf,"all")
+CVstats_disp.region=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","region",studydf,"all")
+CVstats_sigma.disp.region=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","region",studydf,"all")
+
 
 #format prediction/test sets into dataframe for plotting
 sl_predobs.df=CombinePredObs(CVstats_sl.random,CVstats_sl.region)
