@@ -49,19 +49,33 @@ sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[2,3],"sigma.sl
 disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"disp_bestmodelparams.csv"))
 sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
 
+#get helper shapefiles
+usplot <- st_read(dsn = file.path(objdir,"usmapplot_best.shp"), layer = "usmapplot_best")
+
 ## format data -------
 
 #format pigsums data
+#set column used for region split
+colnames(pigsums)[1]<-"Region"
 
-#format watersheds shapefiles
-#wash2<-st_as_sf(wash)
-#wash2 <- st_cast(wash2, "POLYGON")
+#all covars need to be either numeric or factor
+pigsums[,which(colnames(pigsums)=="season")]<-as.factor(pigsums[,which(colnames(pigsums)=="season")])
+pigsums[,which(colnames(pigsums)=="period")]<-as.factor(pigsums[,which(colnames(pigsums)=="period")])
+pigsums[,which(colnames(pigsums)=="sex")]<-as.factor(pigsums[,which(colnames(pigsums)=="sex")])
 
-#Separate wash q's into m/f for separate analysis
-washf=wash
-washm=wash
-washf$sex=as.factor("Female")
-washm$sex=as.factor("Male")
+#response as integers for poisson
+pigsums$sl_mean<-as.integer(pigsums$sl_mean)
+pigsums$displ_mean<-as.integer(pigsums$displ_mean)
+
+#check for any NAs
+#number of NAs between sl/displ may differ
+pigsums_sl<-pigsums[!is.na(pigsums$sl_mean),]
+pigsums_displ<-pigsums[!is.na(pigsums$displ_mean),]
+
+#format helper shapefiles for plotting
+usplot<-st_as_sf(usplot)
+usplot <- st_cast(usplot, "MULTIPOLYGON")
+usplot=st_transform(usplot,crs=st_crs(wash))
 
 # Run GBM models ----------------------------
 gbm.sl=gbm.fixed(data=pigsums_sl, gbm.x=X_vec_list$Xsl, gbm.y=which(colnames(pigsums_sl)=="sl_mean"),
@@ -175,49 +189,36 @@ colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 saveRDS(washp,file.path(objdir,"wash_preds.rds"))
 
 # Plot prediction maps ------------------------
-#get helper shapefiles
-usplot <- st_read(dsn = "./Data/Shapefiles_Mapping/usmapplot", layer = "usmapplot_best")
-usplot<-st_as_sf(usplot)
-usplot <- st_cast(usplot, "MULTIPOLYGON")
-usplot=st_transform(usplot,crs=st_crs(washq1))
 
-#crop with usplot
-washq1=st_intersection(washq1,ncplot)  
-washq2=st_intersection(washq2,usplot)  
-washq3=st_intersection(washq3,usplot)  
-washq4=st_intersection(washq4,usplot)  
+#crop with usplot 
+#this can take a while
+washp2=st_intersection(washp,usplot)  
 
 ## Washq1 -------------------------------------
 
 #washq1 maps
 washq1.sl=ggplot() + 
-  geom_sf(data=ncplot, fill="black")+
-  geom_sf(data = washq1, aes(fill = pred.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length (m) Jan-Mar")+
-  geom_sf(data=ncplot, fill=NA, color="#EBEBEB")+
+  geom_sf(data=usplot, fill="black")+
+  geom_sf(data = washp2, aes(fill = sigmadisp_q1),lwd=0)+scale_fill_viridis_c(name="Mean step length (m) Jan-Mar")+
+  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
   theme_map()
 washq1.sl
 
 washq1.sigma.sl=ggplot() + 
   geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq1, aes(fill = pred.sigma.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length dispersion Jan-Mar")+
+  geom_sf(data = washp2, aes(fill = pred.sigma.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length dispersion Jan-Mar")+
   geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
   theme_map()
 
 washq1.disp=ggplot() + 
   geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq1, aes(fill = pred.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement (m) Jan-Mar")+
+  geom_sf(data = washp2, aes(fill = pred.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement (m) Jan-Mar")+
   geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
   theme_map()
 
 washq1.sigma.disp=ggplot() + 
   geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq1, aes(fill = pred.sigma.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement dispersion Jan-Mar")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq1.tenavg=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq1, aes(fill = pred.tenavg),lwd=0)+scale_fill_viridis_c(name="Mean of 10% longest step lengths (m) Jan-Mar")+
+  geom_sf(data = washp2, aes(fill = pred.sigma.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement dispersion Jan-Mar")+
   geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
   theme_map()
 
@@ -248,12 +249,6 @@ washq2.sigma.disp=ggplot() +
   geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
   theme_map()
 
-washq2.tenavg=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq2, aes(fill = pred.tenavg),lwd=0)+scale_fill_viridis_c(name="Mean of 10% longest step lengths (m) Apr Jun")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
 ## Washq3 -------------------------------------
 
 #washq3 maps
@@ -278,12 +273,6 @@ washq3.disp=ggplot() +
 washq3.sigma.disp=ggplot() + 
   geom_sf(data=usplot, fill="black")+
   geom_sf(data = washq3, aes(fill = pred.sigma.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement dispersion Jul-Sep")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq3.tenavg=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq3, aes(fill = pred.tenavg),lwd=0)+scale_fill_viridis_c(name="Mean of 10% longest step lengths (m) Jul-Sep")+
   geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
   theme_map()
 
@@ -314,22 +303,15 @@ washq4.sigma.disp=ggplot() +
   geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
   theme_map()
 
-washq4.tenavg=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq4, aes(fill = pred.tenavg),lwd=0)+scale_fill_viridis_c(name="Mean of 10% longest step lengths (m) Oct-Dec")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
 ## Make map grids -------------------
 
 plot_grid(washq1.sl, washq2.sl, washq3.sl, washq4.sl, nrow = 2)
 plot_grid(washq1.sigma.sl, washq2.sigma.sl, washq3.sigma.sl, washq4.sigma.sl, nrow = 2)
 plot_grid(washq1.disp, washq2.disp, washq3.disp, washq4.disp, nrow = 2)
 plot_grid(washq1.sigma.disp, washq2.sigma.disp, washq3.sigma.disp, washq4.sigma.disp, nrow = 2)
-plot_grid(washq1.tenavg, washq2.tenavg, washq3.tenavg, washq4.tenavg, nrow = 2)
 
 # Plot uncertainty maps ---------------------------------
-
+#Move this to different script
 #create maps that show the variance in the predictions across each watershed
 
 ## Get Preds function ------------------
