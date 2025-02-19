@@ -302,68 +302,73 @@ write.csv(model.sel.tbl.total,file.path(outdir,filestr,"FigTab","ModelSelTblTota
 
 # Run GBMs -----------------
 
-## get opt params for each top model --------
-sl.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","sl_bestmodelparams.csv"))
-sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","disp_bestmodelparams.csv"))
-sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,"Random","sigma.disp_bestmodelparams.csv"))
-
-sl.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","sl_bestmodelparams.csv"))
-sigma.sl.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","disp_bestmodelparams.csv"))
-sigma.disp.opt.params.kfold_region=read.csv(file.path(outdir,filestr,"Region","sigma.disp_bestmodelparams.csv"))
-
-## determine X vec for each response --------
-
-getXvec<-function(model.sel.tbl.total){
+getXvec<-function(model.sel.tbl.total,out.opt){
   X_vec_list=vector(mode="list",length=4)
   names(X_vec_list)<-c("Xsl","sigmasl","Xdisp","sigmadisp")
   
   X_sel=data.frame(matrix(nrow=4,ncol=4))
   colnames(X_sel)<-c("response","X_vec","reg_ran","vars")
-  for(i in 1:nrow(model.sel.tbl.total)){
-    X_sel[i,1]=rownames(model.sel.tbl.total)[i]
-    c_ind=which(model.sel.tbl.total[i,]==min(model.sel.tbl.total[i,]))
-    X_sel[i,2]=colnames(model.sel.tbl.total)[c_ind]
-  }
-  
-  #parse text in X sel: region or random
-  X_sel[grep("region",X_sel$X_vec),3]<-"Region"
-  X_sel[grep("random",X_sel$X_vec),3]<-"Random"
-  
-  #parse text in X sel: variable sel
-  X_sel[grep("full",X_sel$X_vec),4]<-"Full"
-  X_sel[grep("drop 01",X_sel$X_vec),4]<-"X_vec_01Drop"
-  X_sel[grep("lasso",X_sel$X_vec),4]<-"X_vec_postlasso"
-  X_sel[grep("null",X_sel$X_vec),4]<-"Null"
-  
-  for(i in 1:length(X_vec_list)){
-    if(X_sel[i,4]=="Full"){
-      X_vec_list[[i]]<-c(
-        which(colnames(pigsums)=="sex"),
-        which(colnames(pigsums)=="season"),
-        which(colnames(pigsums)=="period"),
-        which(colnames(pigsums)=="mean_tc"):
-          which(colnames(pigsums)=="var_lc_24")
-      )
-    }
-    if(X_sel[i,4]=="X_vec_01Drop"|X_sel[i,4]=="X_vec_postlasso"){
-      X_vec_folder=file.path(outdir,filestr,X_sel[i,3],X_sel[i,4])
-      Xfiles=list.files(X_vec_folder,full.names=TRUE)
-      Xfile=Xfiles[grep(names(X_vec_list)[i],Xfiles)]
-      X_vec_list[[i]]=read.csv(Xfile)[,2]
-    }
 
-    if(X_sel[i,4]=="Null"){
-      X_vec_list[[i]]=rep(1,nrow(pigsums))
+    
+    for(i in 1:nrow(model.sel.tbl.total)){
+      X_sel[i,1]=rownames(model.sel.tbl.total)[i]
+      c_ind=which(model.sel.tbl.total[i,]==min(model.sel.tbl.total[i,]))
+      X_sel[i,2]=colnames(model.sel.tbl.total)[c_ind]
     }
+    
+    #parse text in X sel: region or random
+    X_sel[grep("region",X_sel$X_vec),3]<-"Region"
+    X_sel[grep("random",X_sel$X_vec),3]<-"Random"
+    
+    #parse text in X sel: variable sel
+    X_sel[grep("full",X_sel$X_vec),4]<-"Full"
+    X_sel[grep("drop 01",X_sel$X_vec),4]<-"X_vec_01Drop"
+    X_sel[grep("lasso",X_sel$X_vec),4]<-"X_vec_postlasso"
+    X_sel[grep("null",X_sel$X_vec),4]<-"Null"
+    
+    if(out.opt=="X_sel"){
+      return(X_sel)
+    } else{
+    
+    for(i in 1:length(X_vec_list)){
+      if(X_sel[i,4]=="Full"){
+        X_vec_list[[i]]<-c(
+          which(colnames(pigsums)=="sex"),
+          which(colnames(pigsums)=="season"),
+          which(colnames(pigsums)=="period"),
+          which(colnames(pigsums)=="mean_tc"):
+            which(colnames(pigsums)=="var_lc_24")
+        )
+      }
+      if(X_sel[i,4]=="X_vec_01Drop"|X_sel[i,4]=="X_vec_postlasso"){
+        X_vec_folder=file.path(outdir,filestr,X_sel[i,3],X_sel[i,4])
+        Xfiles=list.files(X_vec_folder,full.names=TRUE)
+        Xfile=Xfiles[grep(names(X_vec_list)[i],Xfiles)]
+        X_vec_list[[i]]=read.csv(Xfile)[,2]
+      }
+      
+      if(X_sel[i,4]=="Null"){
+        X_vec_list[[i]]=rep(1,nrow(pigsums))
+      }
+    }
+    
+    return(X_vec_list)
   }
-  
-  return(X_vec_list)
-  
 }
 
-X_vec_list=getXvec(model.sel.tbl.total)
+
+## get opt params for each top model --------
+
+X_sel=getXvec(model.sel.tbl.total,"X_sel")
+
+sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"sl_bestmodelparams.csv"))
+sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[2,3],"sigma.sl_bestmodelparams.csv"))
+disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"disp_bestmodelparams.csv"))
+sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
+
+## determine X vec for each response --------
+
+X_vec_list=getXvec(model.sel.tbl.total,"Xlist")
 
 ## Run GBMs --------
 gbm.sl=gbm.fixed(data=pigsums_sl, gbm.x=X_vec_list$Xsl, gbm.y=which(colnames(pigsums_sl)=="sl_mean"),
@@ -531,99 +536,39 @@ dev.off()
 # Partial dependence plots -----------------
 
 numplots=12
+
 #Make partial dependence plots for each response top model, top 12
-MakePdpGrid(numplots,rel.inf.sl_region,gbm.sl_region,pigsums2,sl.opt.params.kfold_region,c(-0.35,0.35))
-
-MakePdpGrid(numplots,rel.inf.sigma.sl,gbm.sigma.sl,cutoff_sl,sigma.sl.opt.params.kfold,c(-0.35,0.35))
-
-MakePdpGrid(numplots,rel.inf.disp,gbm.disp,pigsums2,disp.opt.params.kfold,c(-0.9,0.9))
-
-MakePdpGrid(numplots,rel.inf.sigma.disp_region,gbm.sigma.disp_region,pigsums2,sigma.disp.opt.params.kfold,c(-0.05,0.05))
-
-#MakePdpGrid(numplots,rel.inf.tenavg_region,gbm.tenavg_region,pigsums2,tenavg.opt.params.kfold_region,c(-0.5,0.5))
-
-
-#gbm.interactions(gbm.disp_region)
-
-
-names(gbm.sl$gbm.call)[1] <- "dataframe"
-names(gbm.sigma.sl$gbm.call)[1] <- "dataframe"
-names(gbm.disp$gbm.call)[1] <- "dataframe"
+MakePdpGrid(numplots,rel.inf.sl,gbm.sl,pigsums_sl,sl.opt.params.kfold,c(-0.35,0.35))
+MakePdpGrid(numplots,rel.inf.sigma.sl,gbm.sigma.sl,pigsums_sigmasl,sigma.sl.opt.params.kfold,c(-0.35,0.35))
+MakePdpGrid(numplots,rel.inf.disp,gbm.disp,pigsums_displ,disp.opt.params.kfold,c(-0.9,0.9))
+MakePdpGrid(numplots,rel.inf.sigma.disp,gbm.sigma.disp,pigsums_sigmadisp,sigma.disp.opt.params.kfold,c(-0.05,0.05))
+#can't save as plot objects, need to save manually
 
 # Cross-validation stats, region vs. random -----------------
 
 #Get RMSE and R2 values for out of site/sample predictions
+#studydf<-data.frame("region"=studydf)
+#studydf=studydf$region
 
-#Random
-#sl-full
-#sl sigma-full
-#disp-drop 01
-#disp sigma- full
-#top avg-full
+## Get basic CV tables -----------------
 
-#Region
-#sl-full
-#sl sigma-full
-#disp-lasso
-#disp sigma- full
-#top avg-full
-
-CVstats_sl.random=GetCVStats_Table(pigsums2,X_vec.start,"sl_",sl.opt.params.kfold,"poisson","random",studydf)
-CVstats_sigma.sl.random=GetCVStats_Table(cutoff_sl,X_vec.start,"sigma_sl",sigma.sl.opt.params.kfold,"gaussian","random",studydf)
-CVstats_disp.random=GetCVStats_Table(pigsums2,X.vec.disp.01drop,"displacement",disp.opt.params.kfold,"poisson","random",studydf)
-CVstats_sigma.disp.random=GetCVStats_Table(cutoff_sl,X_vec.start,"sigma_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf)
-#CVstats_tenavg.random=GetCVStats_Table(pigsums2,X_vec.start,"tenavg",tenavg.opt.params.kfold,"poisson","random",studydf)
+CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf)
+CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf)
+CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf)
+CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf)
 
 CVstats_sl.region=GetCVStats_Table(pigsums2,X_vec.start,"sl_",sl.opt.params.kfold_region,"poisson","region",studydf)
 CVstats_sigma.sl.region=GetCVStats_Table(cutoff_sl,X_vec.start,"sigma_sl",sigma.sl.opt.params.kfold_region,"gaussian","region",studydf)
 CVstats_disp.region=GetCVStats_Table(pigsums2,X.vec.disp.lasso.region,"displacement",disp.opt.params.kfold_region,"poisson","region",studydf)
 CVstats_sigma.disp.region=GetCVStats_Table(cutoff_sl,X_vec.start,"sigma_disp",sigma.disp.opt.params.kfold_region,"gaussian","region",studydf)
-#CVstats_tenavg.region=GetCVStats_Table(pigsums2,X_vec.start,"tenavg",tenavg.opt.params.kfold_region,"poisson","region",studydf)
 
 #combine CV method sets
-CVstats_sl.total=rbind(CVstats_sl.random[[1]],CVstats_sl.region[[1]])
-CVstats_sigma.sl.total=rbind(CVstats_sigma.sl.random[[1]],CVstats_sigma.sl.region[[1]])
-CVstats_disp.total=rbind(CVstats_disp.random[[1]],CVstats_disp.region[[1]])
-CVstats_sigma.disp.total=rbind(CVstats_sigma.disp.random[[1]],CVstats_sigma.disp.region[[1]])
-#CVstats_tenavg.total=rbind(CVstats_tenavg.random[[1]],CVstats_tenavg.region[[1]])
+CVstats_sl.total=rbind(CVstats_sl.random,CVstats_sl.region)
+CVstats_sigma.sl.total=rbind(CVstats_sigma.sl.random,CVstats_sigma.sl.region)
+CVstats_disp.total=rbind(CVstats_disp.random,CVstats_disp.region)
+CVstats_sigma.disp.total=rbind(CVstats_sigma.disp.random,CVstats_sigma.disp.region)
 
-
-
-#Remove Mitchell from these descriptive plots because only two points-- 
-#difficult to get accurate estimate of prediction strength
-#CVstats_sl.total=CVstats_sl.total[!(CVstats_sl.total$region=="Mitchell"),]
-#CVstats_sigma.sl.total=CVstats_sigma.sl.total[!(CVstats_sigma.sl.total$region=="Mitchell"),]
-#CVstats_disp.total=CVstats_disp.total[!(CVstats_disp.total$region=="Mitchell"),]
-#CVstats_sigma.disp.total=CVstats_sigma.disp.total[!(CVstats_sigma.disp.total$region=="Mitchell"),]
-#CVstats_tenavg.total=CVstats_tenavg.total[!(CVstats_tenavg.total$region=="Mitchell"),]
-
-#Redo the means for both random/region
-#CVstats_sl.total[CVstats_sl.total$type=="random",][25,3]=mean(CVstats_sl.total[CVstats_sl.total$type=="random",3][1:24])
-#CVstats_sl.total[CVstats_sl.total$type=="region",][25,3]=mean(CVstats_sl.total[CVstats_sl.total$type=="region",3][1:24])
-
-#CVstats_sigma.sl.total[CVstats_sigma.sl.total$type=="random",][23,3]=mean(CVstats_sigma.sl.total[CVstats_sigma.sl.total$type=="random",3][1:22])
-#CVstats_sigma.sl.total[CVstats_sigma.sl.total$type=="region",][23,3]=mean(CVstats_sigma.sl.total[CVstats_sigma.sl.total$type=="region",3][1:22])
-
-#CVstats_disp.total[CVstats_disp.total$type=="random",][25,3]=mean(CVstats_disp.total[CVstats_disp.total$type=="random",3][1:24])
-#CVstats_disp.total[CVstats_disp.total$type=="region",][25,3]=mean(CVstats_disp.total[CVstats_disp.total$type=="region",3][1:24])
-
-#CVstats_sigma.disp.total[CVstats_sigma.disp.total$type=="random",][23,3]=mean(CVstats_sigma.disp.total[CVstats_sigma.disp.total$type=="random",3][1:22])
-#CVstats_sigma.disp.total[CVstats_sigma.disp.total$type=="region",][23,3]=mean(CVstats_sigma.disp.total[CVstats_sigma.disp.total$type=="region",3][1:22])
-#CVstats_tenavg.total[CVstats_tenavg.total$type=="region",][25,3]=mean(CVstats_tenavg.total[CVstats_tenavg.total$type=="region",3][1:24])
-
-#left join to get state added for ordering
-regstats=unique(pigswsite[,c(3,7)])
-CVstats_sl.total=left_join(CVstats_sl.total,regstats,by="region")
-CVstats_sigma.sl.total=left_join(CVstats_sigma.sl.total,regstats,by="region")
-CVstats_disp.total=left_join(CVstats_disp.total,regstats,by="region")
-CVstats_sigma.disp.total=left_join(CVstats_sigma.disp.total,regstats,by="region")
-#CVstats_tenavg.total=left_join(CVstats_tenavg.total,regstats,by="region")
-
-CVstats_sl.total=unique(CVstats_sl.total[,-(5)])
-CVstats_sigma.sl.total=unique(CVstats_sigma.sl.total[,-(5)])
-CVstats_disp.total=unique(CVstats_disp.total[,-(5)])
-CVstats_sigma.disp.total=unique(CVstats_sigma.disp.total[,-(5)])
-#CVstats_tenavg.total=unique(CVstats_tenavg.total[,-(5)])
+## order rows by state -----------------
 
 #order levels for plotting
 CVstats_sl.total=CVstats_sl.total[order(CVstats_sl.total$State,CVstats_sl.total$region),]
@@ -634,27 +579,8 @@ CVstats_disp.total=CVstats_disp.total[order(CVstats_disp.total$State,CVstats_dis
 CVstats_disp.total$region <- factor(CVstats_disp.total$region, levels=unique(CVstats_disp.total$region))
 CVstats_sigma.disp.total=CVstats_sigma.disp.total[order(CVstats_sigma.disp.total$State,CVstats_sigma.disp.total$region),]
 CVstats_sigma.disp.total$region <- factor(CVstats_sigma.disp.total$region, levels=unique(CVstats_sigma.disp.total$region))
-#CVstats_tenavg.total=CVstats_tenavg.total[order(CVstats_tenavg.total$State,CVstats_tenavg.total$region),]
-#CVstats_tenavg.total$region <- factor(CVstats_tenavg.total$region, levels=unique(CVstats_tenavg.total$region))
 
-##Want to add some descriptive stats to change dot sizes in R2/RMSE plots
-#need counts summed per study (ie total pig days)
-#and total num pigs (count num unique pig id's per study)
-#then left join to each CVstats table
-#studycounts=as.data.frame(pigsums2 %>% 
-#                            group_by(region) %>% 
-#                            dplyr::summarise(numpigdays=sum(count), 
-#                                             numpigs=n_distinct(id)))
-
-#get avg.days.region
-
-
-##remove means, won't plot nicely
-CVstats_sl.total=CVstats_sl.total[CVstats_sl.total$region!="MEANS",]
-CVstats_sigma.sl.total=CVstats_sigma.sl.total[CVstats_sigma.sl.total$region!="MEANS",]
-CVstats_disp.total=CVstats_disp.total[CVstats_disp.total$region!="MEANS",]
-CVstats_sigma.disp.total=CVstats_sigma.disp.total[CVstats_sigma.disp.total$region!="MEANS",]
-#CVstats_tenavg.total=CVstats_tenavg.total[CVstats_tenavg.total$region!="MEANS",]
+## Get study IDs instead of names -----------------
 
 #replace table, do left join and then order by new study ID
 region.names=c("LindsayNC",
@@ -725,6 +651,21 @@ CVstats_sl.total=left_join(CVstats_sl.total,newID.tbl,by="region")
 CVstats_sl.total$region=CVstats_sl.total$ID
 CVstats_sl.total=CVstats_sl.total[order(as.numeric(CVstats_sl.total$region)),]
 
+## Get summary df to var dot sizes -----------------
+
+#Make study counts to var dot plot sizes
+studycounts=as.data.frame(pigsums_sl %>% 
+                            group_by(region) %>% 
+                            dplyr::summarise(numpigdays=sum(not_na_sl), 
+                                             numpigs=n_distinct(animalid),
+                                             State=first(state)))
+
+## Make CV dot plots -----------------
+
+#test
+CVstats_sigma.sl.total=left_join(CV_table,newID.tbl,by="region")
+CVstats_sigma.sl.total$ID<-1:nrow(CVstats_sigma.sl.total)
+
 CVstats_sigma.sl.total=left_join(CVstats_sigma.sl.total,newID.tbl,by="region")
 CVstats_sigma.sl.total$region=CVstats_sigma.sl.total$ID
 CVstats_sigma.sl.total=CVstats_sigma.sl.total[order(as.numeric(CVstats_sigma.sl.total$region)),]
@@ -736,65 +677,6 @@ CVstats_disp.total=CVstats_disp.total[order(as.numeric(CVstats_disp.total$region
 CVstats_sigma.disp.total=left_join(CVstats_sigma.disp.total,newID.tbl,by="region")
 CVstats_sigma.disp.total$region=CVstats_sigma.disp.total$ID
 CVstats_sigma.disp.total=CVstats_sigma.disp.total[order(as.numeric(CVstats_sigma.disp.total$region)),]
-
-studycounts=left_join(avg.days.region,newID.tbl,by="region")
-studycounts$region=studycounts$ID
-studycounts=studycounts[order(as.numeric(studycounts$region)),]
-studycounts[studycounts$ID==1,1]<-"01"
-studycounts[studycounts$ID==2,1]<-"02"
-studycounts[studycounts$ID==3,1]<-"03"
-studycounts[studycounts$ID==4,1]<-"04"
-studycounts[studycounts$ID==5,1]<-"05"
-studycounts[studycounts$ID==6,1]<-"06"
-studycounts[studycounts$ID==7,1]<-"07"
-studycounts[studycounts$ID==8,1]<-"08"
-studycounts[studycounts$ID==9,1]<-"09"
-
-#studycounts$region<-studycounts$ID
-#3500, 9106, 13764, 17128, 23423, 27516
-
-#test
-#CVstats_sl.total$region<-as.character(CVstats_sl.total$region)
-#studycounts$region<-as.character(studycounts$region)
-
-#studycounts2<-studycounts
-#studycounts=studycounts[,-c(2,3,6)]
-
-colnames(studycounts)[which(colnames(studycounts)=="avgdays")]<-"numpigdays"
-class(studycounts$region)
-class(CVstats$region)
-
-sl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sl.total,studycounts,"RMSE","sl"))
-sigmasl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.total,studycounts, "RMSE","sigmasl"))
-disp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_disp.total,studycounts, "RMSE","disp"))
-sigmadisp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.total,studycounts, "RMSE","sigmadisp"))
-#tenavg.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_tenavg.total,studycounts, "RMSE","tenavg"))
-
-sl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sl.total,studycounts,"R2","sl"))
-sigmasl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.total,studycounts, "R2","sigmasl"))
-disp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_disp.total,studycounts, "R2","disp"))
-sigmadisp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.total,studycounts, "R2","sigmadisp"))
-#tenavg.r2.dot=ggdraw(make.varsize.dotplots(CVstats_tenavg.total,studycounts, "R2","tenavg"))
-
-ggarrange(sl.rmse.dot,
-          sigmasl.rmse.dot,
-          disp.rmse.dot,
-          sigmadisp.rmse.dot,
-          #tenavg.rmse.dot,
-          common.legend=TRUE, 
-          legend="right",
-          ncol=2,nrow=2,labels=c("a","b","c","d"), 
-          font.label=list(size=45,face="bold"))
-
-ggarrange(sl.r2.dot,
-          sigmasl.r2.dot,
-          disp.r2.dot,
-          sigmadisp.r2.dot,
-          #tenavg.r2.dot,
-          common.legend=TRUE, 
-          legend="right",
-          ncol=2,nrow=2,labels=c("a","b","c","d"), 
-          font.label=list(size=45,face="bold"))
 
 # Pred vs obs plots -----------------
 
