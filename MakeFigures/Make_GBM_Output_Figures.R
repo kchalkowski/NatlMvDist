@@ -557,10 +557,10 @@ CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_
 CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf)
 CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf)
 
-CVstats_sl.region=GetCVStats_Table(pigsums2,X_vec.start,"sl_",sl.opt.params.kfold_region,"poisson","region",studydf)
-CVstats_sigma.sl.region=GetCVStats_Table(cutoff_sl,X_vec.start,"sigma_sl",sigma.sl.opt.params.kfold_region,"gaussian","region",studydf)
-CVstats_disp.region=GetCVStats_Table(pigsums2,X.vec.disp.lasso.region,"displacement",disp.opt.params.kfold_region,"poisson","region",studydf)
-CVstats_sigma.disp.region=GetCVStats_Table(cutoff_sl,X_vec.start,"sigma_disp",sigma.disp.opt.params.kfold_region,"gaussian","region",studydf)
+CVstats_sl.region=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","region",studydf)
+CVstats_sigma.sl.region=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","region",studydf)
+CVstats_disp.region=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","region",studydf)
+CVstats_sigma.disp.region=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","region",studydf)
 
 #combine CV method sets
 CVstats_sl.total=rbind(CVstats_sl.random,CVstats_sl.region)
@@ -569,90 +569,6 @@ CVstats_disp.total=rbind(CVstats_disp.random,CVstats_disp.region)
 CVstats_sigma.disp.total=rbind(CVstats_sigma.disp.random,CVstats_sigma.disp.region)
 
 ## order rows by state -----------------
-
-#order levels for plotting
-CVstats_sl.total=CVstats_sl.total[order(CVstats_sl.total$State,CVstats_sl.total$region),]
-CVstats_sl.total$region <- factor(CVstats_sl.total$region, levels=unique(CVstats_sl.total$region))
-CVstats_sigma.sl.total=CVstats_sigma.sl.total[order(CVstats_sigma.sl.total$State,CVstats_sigma.sl.total$region),]
-CVstats_sigma.sl.total$region <- factor(CVstats_sigma.sl.total$region, levels=unique(CVstats_sigma.sl.total$region))
-CVstats_disp.total=CVstats_disp.total[order(CVstats_disp.total$State,CVstats_disp.total$region),]
-CVstats_disp.total$region <- factor(CVstats_disp.total$region, levels=unique(CVstats_disp.total$region))
-CVstats_sigma.disp.total=CVstats_sigma.disp.total[order(CVstats_sigma.disp.total$State,CVstats_sigma.disp.total$region),]
-CVstats_sigma.disp.total$region <- factor(CVstats_sigma.disp.total$region, levels=unique(CVstats_sigma.disp.total$region))
-
-## Get study IDs instead of names -----------------
-
-#replace table, do left join and then order by new study ID
-region.names=c("LindsayNC",
-               "LindsayCC",
-               "Mitchell",
-               "LindsaySC",
-               "Tejon",
-               "Noble",
-               "Nate Snow",
-               "Susan",
-               "Camp Bullis",
-               "Tyler",
-               "Hartley",
-               "Potts",
-               "Noxubee",
-               "Kurt",
-               "Steve",
-               "Bill",
-               "FL2",
-               "Raoul",
-               "contact",
-               "SC3",
-               "Jim",
-               "Jim2",
-               "SREL_Vacuum",
-               "SREL_contact",
-               "PhD")
-study.ID=as.character(c(1,
-           2,
-           3,
-           4,
-           5,
-           6,
-           7,
-           8,
-           9,
-           10,
-           11,
-           12,
-           13,
-           14,
-           15,
-           16,
-           17,
-           18,
-           19,
-           20,
-           21,
-           22,
-           23,
-           24,
-           25))
-newID.tbl=data.frame(region=region.names,ID=study.ID)
-
-#force 9,8,7 to go after 10 when character
-newID.tbl[newID.tbl$ID==9,2]<-"09"
-newID.tbl[newID.tbl$ID==8,2]<-"08"
-newID.tbl[newID.tbl$ID==7,2]<-"07"
-newID.tbl[newID.tbl$ID==6,2]<-"06"
-newID.tbl[newID.tbl$ID==5,2]<-"05"
-newID.tbl[newID.tbl$ID==4,2]<-"04"
-newID.tbl[newID.tbl$ID==3,2]<-"03"
-newID.tbl[newID.tbl$ID==2,2]<-"02"
-newID.tbl[newID.tbl$ID==1,2]<-"01"
-
-#do join with new ID.tbl to get new IDs replaced
-CVstats_sl.total=left_join(CVstats_sl.total,newID.tbl,by="region")
-CVstats_sl.total$region=CVstats_sl.total$ID
-CVstats_sl.total=CVstats_sl.total[order(as.numeric(CVstats_sl.total$region)),]
-
-## Get summary df to var dot sizes -----------------
-
 #Make study counts to var dot plot sizes
 studycounts=as.data.frame(pigsums_sl %>% 
                             group_by(region) %>% 
@@ -660,23 +576,39 @@ studycounts=as.data.frame(pigsums_sl %>%
                                              numpigs=n_distinct(animalid),
                                              State=first(state)))
 
+## Get study IDs instead of names -----------------
+
 ## Make CV dot plots -----------------
 
-#test
-CVstats_sigma.sl.total=left_join(CV_table,newID.tbl,by="region")
-CVstats_sigma.sl.total$ID<-1:nrow(CVstats_sigma.sl.total)
+sl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sl.total,studycounts,"RMSE","sl"))
+sigmasl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.total,studycounts, "RMSE","sigmasl"))
+disp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_disp.total,studycounts, "RMSE","disp"))
+sigmadisp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.total,studycounts, "RMSE","sigmadisp"))
 
-CVstats_sigma.sl.total=left_join(CVstats_sigma.sl.total,newID.tbl,by="region")
-CVstats_sigma.sl.total$region=CVstats_sigma.sl.total$ID
-CVstats_sigma.sl.total=CVstats_sigma.sl.total[order(as.numeric(CVstats_sigma.sl.total$region)),]
+sl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sl.total,studycounts,"R2","sl"))
+sigmasl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.total,studycounts, "R2","sigmasl"))
+disp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_disp.total,studycounts, "R2","disp"))
+sigmadisp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.total,studycounts, "R2","sigmadisp"))
 
-CVstats_disp.total=left_join(CVstats_disp.total,newID.tbl,by="region")
-CVstats_disp.total$region=CVstats_disp.total$ID
-CVstats_disp.total=CVstats_disp.total[order(as.numeric(CVstats_disp.total$region)),]
+ggarrange(sl.rmse.dot,
+          sigmasl.rmse.dot,
+          disp.rmse.dot,
+          sigmadisp.rmse.dot,
+          #tenavg.rmse.dot,
+          common.legend=TRUE, 
+          legend="right",
+          ncol=2,nrow=2,labels=c("a","b","c","d"), 
+          font.label=list(size=45,face="bold"))
 
-CVstats_sigma.disp.total=left_join(CVstats_sigma.disp.total,newID.tbl,by="region")
-CVstats_sigma.disp.total$region=CVstats_sigma.disp.total$ID
-CVstats_sigma.disp.total=CVstats_sigma.disp.total[order(as.numeric(CVstats_sigma.disp.total$region)),]
+ggarrange(sl.r2.dot,
+          sigmasl.r2.dot,
+          disp.r2.dot,
+          sigmadisp.r2.dot,
+          #tenavg.r2.dot,
+          common.legend=TRUE, 
+          legend="right",
+          ncol=2,nrow=2,labels=c("a","b","c","d"), 
+          font.label=list(size=45,face="bold"))
 
 # Pred vs obs plots -----------------
 
@@ -685,7 +617,6 @@ sl_predobs.df=CombinePredObs(CVstats_sl.random,CVstats_sl.region)
 sigma.sl_predobs.df=CombinePredObs(CVstats_sigma.sl.random,CVstats_sigma.sl.region)
 disp_predobs.df=CombinePredObs(CVstats_disp.random,CVstats_disp.region)
 sigma.disp_predobs.df=CombinePredObs(CVstats_sigma.disp.random,CVstats_sigma.disp.region)
-#tenavg_predobs.df=CombinePredObs(CVstats_tenavg.random,CVstats_tenavg.region)
 
 #force single digits to go after 10 when character
 newID.tbl[newID.tbl$ID==1,2]<-"01"
@@ -697,7 +628,6 @@ newID.tbl[newID.tbl$ID==6,2]<-"06"
 newID.tbl[newID.tbl$ID==7,2]<-"07"
 newID.tbl[newID.tbl$ID==8,2]<-"08"
 newID.tbl[newID.tbl$ID==9,2]<-"09"
-
 
 #do join with new ID.tbl to get new IDs replaced
 sl_predobs.df=left_join(sl_predobs.df,newID.tbl,by="region")
