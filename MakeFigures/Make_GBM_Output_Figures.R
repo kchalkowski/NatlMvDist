@@ -727,10 +727,6 @@ disp_predobs.df2[disp_predobs.df2$name=="preds",3]<-"predicted"
 sigma.disp_predobs.df2[sigma.disp_predobs.df2$name=="test",3]<-"observed"
 sigma.disp_predobs.df2[sigma.disp_predobs.df2$name=="preds",3]<-"predicted"
 
-#tenavg_predobs.df2[tenavg_predobs.df2$name=="test",3]<-"observed"
-#tenavg_predobs.df2[tenavg_predobs.df2$name=="preds",3]<-"predicted"
-
-
 sl.dens<-sl_predobs.df2%>%
   ggplot(aes(x=value, fill=name)) +
   geom_density(alpha=0.5)+ 
@@ -767,16 +763,9 @@ sigmadisp.dens<-sigma.disp_predobs.df2%>%
   facet_wrap(vars(CVmethod))+
   theme(text = element_text(size = 40))
 
-#tenavg.dens<-tenavg_predobs.df2%>%
-#  ggplot(aes(x=value, fill=name)) +
-#  geom_density(alpha=0.5)+ 
-#  labs(x= "Top 10% of daily step length means")+
-#  theme_minimal()+
-#  scale_fill_manual(values=c("#25858e", "#2ab07f"), name="CV method")+
-#  facet_wrap(vars(CVmethod))+
-#  theme(text = element_text(size = 40))
+path=file.path(outdir,filestr,"FigTab","pred_obs_densities")
 
-png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/pred_obs_densitys/pr_dens_grid_26APR23.png",sep="/"),
+png(file=file.path(path,"pr_dens_grid.png"),
     width=2550, height=3300)
 ggarrange(sl.dens,
           sigmasl.dens,
