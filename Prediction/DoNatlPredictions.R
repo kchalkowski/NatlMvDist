@@ -72,6 +72,10 @@ pigsums$displ_mean<-as.integer(pigsums$displ_mean)
 pigsums_sl<-pigsums[!is.na(pigsums$sl_mean),]
 pigsums_displ<-pigsums[!is.na(pigsums$displ_mean),]
 
+#make cutoff set for sigma models
+pigsums_sigmasl=pigsums[pigsums$not_na_sl>30,]
+pigsums_sigmadisp=pigsums[pigsums$not_na_displ>30,]
+
 #format helper shapefiles for plotting
 usplot<-st_as_sf(usplot)
 usplot <- st_cast(usplot, "MULTIPOLYGON")
@@ -177,11 +181,11 @@ strings=paste0("sigmasl_q",1:4)
 colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 
 washp=cbind(washp,pred_disp)
-strings=paste0("sigmadisp_q",1:4)
+strings=paste0("disp_q",1:4)
 colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 
 washp=cbind(washp,pred_sigmadisp)
-strings=paste0("disp_q",1:4)
+strings=paste0("sigmadisp_q",1:4)
 colnames(washp)[(ncol(washp)-4):(ncol(washp)-1)]=strings
 
 # Save wash with predictions --------------
@@ -194,121 +198,57 @@ saveRDS(washp,file.path(objdir,"wash_preds.rds"))
 #this can take a while
 washp2=st_intersection(washp,usplot)  
 
-## Washq1 -------------------------------------
+WashMap<-function(colname,string){
+  #parse(text=colname)
+  washmap=ggplot() + 
+    geom_sf(data=usplot, fill="black")+
+    geom_sf(data = washp2, aes(fill = eval(parse(text=colname))),lwd=0)+scale_fill_viridis_c(name=string)+
+    geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
+    theme_map()
+  return(washmap)
+}
 
-#washq1 maps
-washq1.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washp2, aes(fill = sigmadisp_q1),lwd=0)+scale_fill_viridis_c(name="Mean step length (m) Jan-Mar")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-washq1.sl
+#test
+#map=WashMap("sigmadisp_q1","Sigma Disp Map Quarter 1")
+#ggsave(file.path(outdir,filestr,"FigTab","Tests","map.png"),plot=map)
 
-washq1.sigma.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washp2, aes(fill = pred.sigma.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length dispersion Jan-Mar")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
+## SL -------------------------------------
+washq1.sl=WashMap("sl_q1","Mean step length (m) Jan-Mar")
+washq2.sl=WashMap("sl_q2","Mean step length (m) Apr-Jun")
+washq3.sl=WashMap("sl_q3","Mean step length (m) Jul-Sep")
+washq4.sl=WashMap("sl_q4","Mean step length (m) Oct-Dec")
 
-washq1.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washp2, aes(fill = pred.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement (m) Jan-Mar")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
+## Sigma SL -------------------------------------
+washq1.sigma.sl=WashMap("sigmasl_q1","Mean step length dispersion Jan-Mar")
+washq1.sigma.sl=WashMap("sigmasl_q2","Mean step length dispersion Apr-Jun")
+washq1.sigma.sl=WashMap("sigmasl_q3","Mean step length dispersion Jul-Sep")
+washq1.sigma.sl=WashMap("sigmasl_q4","Mean step length dispersion Oct-Dec")
 
-washq1.sigma.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washp2, aes(fill = pred.sigma.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement dispersion Jan-Mar")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
+## Disp -------------------------------------
+washq1.disp=WashMap("disp_q1","Mean displacement (m) Jan-Mar")
+washq1.disp=WashMap("disp_q2","Mean displacement (m) Apr-Jun")
+washq1.disp=WashMap("disp_q3","Mean displacement (m) Jul-Sep")
+washq1.disp=WashMap("disp_q4","Mean displacement (m) Oct-Dec")
 
-## Washq2 -------------------------------------
-
-#washq2 maps
-washq2.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq2, aes(fill = pred.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length (m) Apr-Jun")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq2.sigma.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq2, aes(fill = pred.sigma.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length dispersion Apr-Jun")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq2.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq2, aes(fill = pred.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement (m) Apr-Jun")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq2.sigma.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq2, aes(fill = pred.sigma.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement dispersion Apr-Jun")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-## Washq3 -------------------------------------
-
-#washq3 maps
-washq3.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq3, aes(fill = pred.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length (m) Jul-Sep")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq3.sigma.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq3, aes(fill = pred.sigma.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length dispersion Jul-Sep")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq3.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq3, aes(fill = pred.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement (m) Jul-Sep")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq3.sigma.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq3, aes(fill = pred.sigma.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement dispersion Jul-Sep")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-## Washq4 -------------------------------------
-
-#washq4 maps
-washq4.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq4, aes(fill = pred.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length (m) Oct-Dec")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq4.sigma.sl=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq4, aes(fill = pred.sigma.sl),lwd=0)+scale_fill_viridis_c(name="Mean step length dispersion Oct-Dec")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq4.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq4, aes(fill = pred.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement (m) Oct-Dec")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
-
-washq4.sigma.disp=ggplot() + 
-  geom_sf(data=usplot, fill="black")+
-  geom_sf(data = washq4, aes(fill = pred.sigma.disp),lwd=0)+scale_fill_viridis_c(name="Mean displacement dispersion Oct-Dec")+
-  geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-  theme_map()
+## Sigma Disp -------------------------------------
+washq1.sigma.disp=WashMap("sigmadisp_q1","Mean displacement dispersion Jan-Mar")
+washq1.sigma.disp=WashMap("sigmadisp_q2","Mean displacement dispersion Apr-Jun")
+washq1.sigma.disp=WashMap("sigmadisp_q3","Mean displacement dispersion Jul-Sep")
+washq1.sigma.disp=WashMap('sigmadisp_q4',"Mean displacement dispersion Oct-Dec")
 
 ## Make map grids -------------------
 
-plot_grid(washq1.sl, washq2.sl, washq3.sl, washq4.sl, nrow = 2)
-plot_grid(washq1.sigma.sl, washq2.sigma.sl, washq3.sigma.sl, washq4.sigma.sl, nrow = 2)
-plot_grid(washq1.disp, washq2.disp, washq3.disp, washq4.disp, nrow = 2)
-plot_grid(washq1.sigma.disp, washq2.sigma.disp, washq3.sigma.disp, washq4.sigma.disp, nrow = 2)
+sl_pg=plot_grid(washq1.sl, washq2.sl, washq3.sl, washq4.sl, nrow = 2)
+sigmasl_pg=plot_grid(washq1.sigma.sl, washq2.sigma.sl, washq3.sigma.sl, washq4.sigma.sl, nrow = 2)
+disp_pg=plot_grid(washq1.disp, washq2.disp, washq3.disp, washq4.disp, nrow = 2)
+sigmadisp_pg=plot_grid(washq1.sigma.disp, washq2.sigma.disp, washq3.sigma.disp, washq4.sigma.disp, nrow = 2)
+
+## Save map grids -------------------
+if(!dir.exists(file.path(outdir,filestr,"FigTab","Maps"))){dir.create(file.path(outdir,filestr,"FigTab","Maps"))}
+ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=sl_pg,height=6.5,width=9,units="in")
+ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=sigmasl_pg,height=6.5,width=9,units="in")
+ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=disp_pg,height=6.5,width=9,units="in")
+ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=sigmadisp_pg,height=6.5,width=9,units="in")
 
 # Plot uncertainty maps ---------------------------------
 #Move this to different script
