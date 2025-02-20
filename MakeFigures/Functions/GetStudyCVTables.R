@@ -49,13 +49,13 @@ Get_OutofSite_CVstats<-function(predset,type){
 
 #GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf)
 #pigsums2,X_vec.start,"sl_",sl.opt.params.kfold,"poisson","random",studydf
-dataset=pigsums_sigmasl
-X.vec=X_vec_list$sigmasl
-response="sl_disp"
-opt.params=sigma.sl.opt.params.kfold
-family="gaussian"
-CVtype="random"
-out.opt="all"
+#dataset=pigsums_sigmasl
+#X.vec=X_vec_list$sigmasl
+#response="sl_disp"
+#opt.params=sigma.sl.opt.params.kfold
+#family="gaussian"
+#CVtype="random"
+#out.opt="all"
 GetCVStats_Table<-function(dataset,X.vec,response,opt.params,family,CVtype,studydf,out.opt){
 region.pred.set=MakeSitePredSets(dataset,X.vec,response,opt.params,family)
 CV_table=Get_OutofSite_CVstats(region.pred.set,CVtype)
