@@ -88,10 +88,10 @@ source(file.path(home,"1_Scripts","Analysis","GBM_nestedCV","GBM_Functions","K_S
 
 #initiate tables, region and random cv methods
 model.sel.tbl=as.data.frame(matrix(nrow=4,ncol=8))
-rownames(model.sel.tbl)=c("step length", "step length sigma", "displacement", "disp. sigma", "top average sl")
+rownames(model.sel.tbl)=c("step length", "step length sigma", "displacement", "disp. sigma")
 colnames(model.sel.tbl)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
 model.sel.tbl.region=as.data.frame(matrix(nrow=4,ncol=8))
-rownames(model.sel.tbl.region)=c("step length", "step length sigma", "displacement", "disp. sigma", "top average sl")
+rownames(model.sel.tbl.region)=c("step length", "step length sigma", "displacement", "disp. sigma")
 colnames(model.sel.tbl.region)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
 
 #Full model: get values from file
@@ -215,9 +215,6 @@ model.sel.tbl[3,6]=round(lasso.R2.disp[1,2],3)
 #row 4: sigma disp
 model.sel.tbl[4,5]=round(lasso.RMSE.sigma.disp[1,2],3)
 model.sel.tbl[4,6]=round(lasso.R2.sigma.disp[1,2],3)
-#row 5: sigma disp
-model.sel.tbl[5,5]=round(lasso.RMSE.tenavg[1,2],3)
-model.sel.tbl[5,6]=round(lasso.R2.tenavg[1,2],3)
 
 #col 7,8: null model rmse, r2
 #row 1: sl
