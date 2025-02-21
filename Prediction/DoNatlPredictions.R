@@ -208,10 +208,6 @@ WashMap<-function(colname,string){
   return(washmap)
 }
 
-#test
-#map=WashMap("sigmadisp_q1","Sigma Disp Map Quarter 1")
-#ggsave(file.path(outdir,filestr,"FigTab","Tests","map.png"),plot=map)
-
 ## SL -------------------------------------
 washq1.sl=WashMap("sl_q1","Mean step length (m) Jan-Mar")
 washq2.sl=WashMap("sl_q2","Mean step length (m) Apr-Jun")
