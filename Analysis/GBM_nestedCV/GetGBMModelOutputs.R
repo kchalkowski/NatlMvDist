@@ -6,27 +6,22 @@ home="homepath"
 #https://bradleyboehmke.github.io/HOML/gbm.html
 #https://rspatial.org/raster/sdm/9_sdm_brt.html
 
-###################
-## Set Variables ##
-###################
+# Set variables ----------------
+
 #vars that may need to be changed from run to run
 repname="10DEC24_Runs"
 split_type="Region"
 
-###################
-##Process Outline##
-###################
+# Process Outline ----------------
 
 #input: pigsums.csv
 
-################
-##Script Setup##
-################
-setwd(home)
+# Setup ----------------
 
+#Set dirs
+setwd(home)
 #set path where gbm functions live
 gbm_funcdir=file.path(home,"1_Scripts","Analysis","GBM_nestedCV","GBM_Functions", fsep = .Platform$file.sep)
-
 #set objdir
 objdir=file.path(home,"2_Data","Objects", fsep = .Platform$file.sep)
 
@@ -46,9 +41,8 @@ require(job)
 #read data
 pigsums=readRDS(file.path(objdir,"dailyPigSums.rds", fsep = .Platform$file.sep))
 
-###############
-##Format Data##
-###############
+# Format Data ----------------
+
 #set column used for region split
 colnames(pigsums)[1]<-"Region"
 
@@ -66,25 +60,17 @@ pigsums$displ_mean<-as.integer(pigsums$displ_mean)
 pigsums_sl<-pigsums[!is.na(pigsums$sl_mean),]
 pigsums_displ<-pigsums[!is.na(pigsums$displ_mean),]
 
-###################################
-##Source Functions and Set Params##
-###################################
+# Source functions
 
 source(file.path(gbm_funcdir,"/GBM_FunctionSourcer.R", fsep = .Platform$file.sep))
 
 ###############################
 ##--Hyperparameter optimization--##
 ###############################
-
-#job::job({
-  #resource needed parms
-
+#vars for input: repname, split_type, 
   filestr=paste("4_Outputs",repname,split_type,sep="/")
   if(!dir.exists(file.path("4_Outputs/",repname, fsep = .Platform$file.sep))){dir.create(file.path("4_Outputs/",repname, fsep = .Platform$file.sep))}
   if(!dir.exists(filestr)){dir.create(filestr)}
-  
-  #random=randomly splits the data into test/training sets according to ko/ki
-  split_type="Region" #splits the data according to 'region', which is the study name
   
 #for testing
 ko_t=10 #outer k-fold cross validations
@@ -100,24 +86,24 @@ X_vec.start=c(
         )
 
 #Run models
-#res.sl=Run.GBM.Model(pigsums_sl,"sl_mean",X_vec.start,ko_t,ki_t,"poisson",split_type,ntreemax=8000)
+res.sl=Run.GBM.Model(pigsums_sl,"sl_mean",X_vec.start,ko_t,ki_t,"poisson",split_type,ntreemax=8000)
 
 #Export CV stats from first run
 #set file.str and make directory for saving
-#write.csv(res.sl[[2]],paste0(filestr,"/sl_meanRMSE.csv"))
-#write.csv(res.sl[[3]],paste0(filestr,"/sl_bestmodelparams.csv"))
-#write.csv(res.sl[[4]],paste0(filestr,"/sl_meanR2.csv"))
-#saveRDS(res.sl[[5]],paste0(filestr,"/sl_preds.rds"))
-#saveRDS(res.sl[[6]],paste0(filestr,"/sl_testobs.rds"))
+write.csv(res.sl[[2]],paste0(filestr,"/sl_meanRMSE.csv"))
+write.csv(res.sl[[3]],paste0(filestr,"/sl_bestmodelparams.csv"))
+write.csv(res.sl[[4]],paste0(filestr,"/sl_meanR2.csv"))
+saveRDS(res.sl[[5]],paste0(filestr,"/sl_preds.rds"))
+saveRDS(res.sl[[6]],paste0(filestr,"/sl_testobs.rds"))
 
 #started res.sigma.sl run at aug 26/2024, 12pm
-#res.sigma.sl=Run.GBM.Model(pigsums_sl,"sl_disp",X_vec.start,ko_t,ki_t,"gaussian",split_type,ntreemax=8000)
+res.sigma.sl=Run.GBM.Model(pigsums_sl,"sl_disp",X_vec.start,ko_t,ki_t,"gaussian",split_type,ntreemax=8000)
 
-#write.csv(res.sigma.sl[[2]],paste0(filestr,"/sigma.sl_meanRMSE.csv"))
-#write.csv(res.sigma.sl[[3]],paste0(filestr,"/sigma.sl_bestmodelparams.csv"))
-#write.csv(res.sigma.sl[[4]],paste0(filestr,"/sigma.sl_meanR2.csv"))
-#saveRDS(res.sigma.sl[[5]],paste0(filestr,"/sigma.sl_preds.rds"))
-#saveRDS(res.sigma.sl[[6]],paste0(filestr,"/sigma.sl_testobs.rds"))
+write.csv(res.sigma.sl[[2]],paste0(filestr,"/sigma.sl_meanRMSE.csv"))
+write.csv(res.sigma.sl[[3]],paste0(filestr,"/sigma.sl_bestmodelparams.csv"))
+write.csv(res.sigma.sl[[4]],paste0(filestr,"/sigma.sl_meanR2.csv"))
+saveRDS(res.sigma.sl[[5]],paste0(filestr,"/sigma.sl_preds.rds"))
+saveRDS(res.sigma.sl[[6]],paste0(filestr,"/sigma.sl_testobs.rds"))
 
 res.disp=Run.GBM.Model(pigsums_displ,"displ_mean",X_vec.start,ko_t,ki_t,"poisson",split_type,ntreemax=8000)
 
