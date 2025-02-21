@@ -141,19 +141,7 @@ GetPreds<-function(p,q,pigsums2,ww,reps,opt.params,X.vec,response,distribution){
   #return(predmat)
   
 }
-pigsums2=pigsums_sigmadisp
-p=1
-q=1
-reps=10
-washq=wash
-opt.params=sigma.disp.opt.params.kfold
-X.vec=X_vec_list$sigmadisp
-response="displ_disp"
-distribution="gaussian"
-path.out="~/Downloads"
-filename="test"
-reps=5
-ww=wash
+
 #Make function to run function in parallel and save output
 RunUncertaintyParallel<-function(clustnum,pigsums2,
                                  ww,reps,opt.params,
