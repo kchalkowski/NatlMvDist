@@ -81,9 +81,9 @@ usplot<-st_as_sf(usplot)
 usplot <- st_cast(usplot, "MULTIPOLYGON")
 usplot=st_transform(usplot,crs=st_crs(wash))
 
-## Get Preds function ------------------
-reps=5
-ww=wash
+# Make functions to get uncertainty matrices ------------------
+
+# Run predictions over reps for single period/quarter/response
 GetPreds<-function(p,q,pigsums2,ww,reps,opt.params,X.vec,response,distribution){
   allq=grep("_q",colnames(ww))
   
@@ -142,7 +142,7 @@ GetPreds<-function(p,q,pigsums2,ww,reps,opt.params,X.vec,response,distribution){
   
 }
 
-#Make function to run function in parallel and save output
+#Make function to run GetPreds in parallel over each quarter/period
 RunUncertaintyParallel<-function(clustnum,pigsums2,
                                  ww,reps,opt.params,
                                  X.vec,response,
@@ -151,7 +151,7 @@ RunUncertaintyParallel<-function(clustnum,pigsums2,
   for(q in 1:4){
   print(paste0("q: ",q))
   for(p in 1:4){
-  print(paste0("p: ",q))
+  print(paste0("p: ",p))
   cl <- parallel::makeCluster(clustnum)
   doParallel::registerDoParallel(cl)
   plist=GetPreds(p,q,pigsums2,ww,reps,opt.params,X.vec,response,distribution)
@@ -180,6 +180,40 @@ RunUncertaintyParallel<-function(clustnum,pigsums2,
   }
 }
 
+#Make function to average the quarters to get single uncertainty matrix
+pmat.str="sigmadisp_pmat"
+pmat.path=path.ut
+AverageQuarters<-function(pmat.path,pmat.str){
+  pmat.fs=list.files(pmat.path,full.names=TRUE)
+  pmat.fs=pmat.fs[grep(pmat.str,pmat.fs)]
+  pmat_list <- lapply(pmat.fs, readRDS)
+  
+  #should only be list of four, else, stop
+  if(length(pmat_list)>4){stop("incorrect pmats pulled for averaging")}
+  
+  pmat_1=pmat_list[[1]]
+  pmat_2=pmat_list[[2]]
+  pmat_3=pmat_list[[3]]
+  pmat_4=pmat_list[[4]]
+  
+  allqmat=abind(pmat_1,pmat_2,pmat_3,pmat_4,along=3)
+  allqmat2=(rowSums(allqmat, dims = 2))/4
+  
+  #remove individual q files
+  print(paste0("Removing ",pmat.fs[1]))
+  file.remove(pmat.fs[1])
+  print(paste0("Removing ",pmat.fs[2]))
+  file.remove(pmat.fs[2])
+  print(paste0("Removing ",pmat.fs[3]))
+  file.remove(pmat.fs[3])
+  print(paste0("Removing ",pmat.fs[4]))
+  file.remove(pmat.fs[4])
+  
+  #Saving final pmat file
+  print(paste0("Saving seasonally-averaged ",pmat.str))
+  saveRDS(allqmat2,file.path(pmat.path,paste0(pmat.str,".rds")))
+  
+}
 
 # Run function for each response and q ------------------
 if(!dir.exists(file.path(objdir,"UncPredMats"))){dir.create(file.path(objdir,"UncPredMats"))}
@@ -195,6 +229,8 @@ RunUncertaintyParallel(4,
                        "sl_mean","poisson",
                        path.out,"sl_pmat")
 
+AverageQuarters(path.out,"sl_pmat")
+
 ### Sigma SL ------------------
 
 RunUncertaintyParallel(4,
@@ -203,6 +239,8 @@ RunUncertaintyParallel(4,
                        X_vec_list$sigmasl,
                        "sl_disp","gaussian",
                        path.out,"sigmasl_pmat")
+
+AverageQuarters(path.out,"sigmasl_pmat")
 
 ### Disp ------------------
 
@@ -213,6 +251,8 @@ RunUncertaintyParallel(4,
                        "displ_mean","poisson",
                        path.out,"disp_pmat")
 
+AverageQuarters(path.out,"disp_pmat")
+
 ### Sigma Disp ------------------
 
 RunUncertaintyParallel(4,
@@ -220,8 +260,9 @@ RunUncertaintyParallel(4,
                        sigma.disp.opt.params.kfold,
                        X_vec_list$Xdisp,
                        "displ_disp","gaussian",
-                       path.out,"disp_pmat")
+                       path.out,"sigmadisp_pmat")
 
+AverageQuarters(path.out,"sigmadisp_pmat")
 
 
 
