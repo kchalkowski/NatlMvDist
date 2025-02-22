@@ -36,7 +36,6 @@ require(SHAPforxgboost)
 require(caret)
 require(ggplot2)
 require(glmnet)
-require(job)
 
 #read data
 pigsums=readRDS(file.path(objdir,"dailyPigSums.rds", fsep = .Platform$file.sep))
@@ -60,8 +59,11 @@ pigsums$displ_mean<-as.integer(pigsums$displ_mean)
 pigsums_sl<-pigsums[!is.na(pigsums$sl_mean),]
 pigsums_displ<-pigsums[!is.na(pigsums$displ_mean),]
 
-# Source functions
+#make cutoff set for sigma models
+pigsums_sigmasl=pigsums[pigsums$not_na_sl>30,]
+pigsums_sigmadisp=pigsums[pigsums$not_na_displ>30,]
 
+# Source functions
 source(file.path(gbm_funcdir,"GBM_FunctionSourcer.R", fsep = .Platform$file.sep))
 
 # Hyperparameter optimization and Variable selection ---------
@@ -70,6 +72,7 @@ split_types=c("Region","Random")
 responses=colnames(pigsums)[59:62]
 response_strings=c("sl","sigma.sl","disp","sigma.disp")
 distributions=c("poisson","gaussian","poisson","gaussian")
+pigsums_list=list(pigsums_sl,pigsums_sigmasl,pigsums_displ,pigsums_sigmadisp)
 
 #Loop through each split type
 for(s in 1:2){
@@ -80,6 +83,7 @@ for(r in 1:4){
 response=responses[r]
 response_str=response_strings[r]
 distribution=distributions[r]
+pigsums=pigsums_list[[r]]
 
 MakeAllGBMOutputs(repname,split_type,pigsums,response,response_str,distribution)
 
