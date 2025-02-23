@@ -85,7 +85,11 @@ response_str=response_strings[r]
 distribution=distributions[r]
 pigsums=pigsums_list[[r]]
 
-MakeAllGBMOutputs(repname,split_type,pigsums,response,response_str,distribution)
+  filestr=paste("4_Outputs",repname,split_type,sep="/")
+  if(!dir.exists(file.path("4_Outputs/",repname, fsep = .Platform$file.sep))){dir.create(file.path("4_Outputs/",repname, fsep = .Platform$file.sep))}
+  if(!dir.exists(filestr)){dir.create(filestr)}
+  path=file.path(home,filestr,fsep = .Platform$file.sep)
+MakeAllGBMOutputs(path,split_type,pigsums,response,response_str,distribution)
 
 }
 }
