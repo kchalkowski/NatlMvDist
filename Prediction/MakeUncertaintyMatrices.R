@@ -3,8 +3,13 @@
 
 # This script does predictions from top models for sl/disp responses for all watershed/seasons
 
-#Inputs: wash_envcov_final.rds, pigsums, XXX
+#Inputs: wash, pigsums
 #Output:
+
+# Vars --------------------------------
+reps=4
+clustnum=4
+filestr<-"TestRuns"
 
 # Setup --------------------------------
 
@@ -22,13 +27,16 @@ library(dismo)
 library(gbm)
 library(doParallel)
 library(foreach)
+library(abind)
 
 ## set working directories -------
 #local:
 home<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
-filestr<-"TestRuns"
-outdir<-file.path(home,"4_Outputs",filestr)
+outdir<-file.path(home,"4_Outputs")
 objdir<-file.path(home,"2_Data","Objects")
+if(!dir.exists(file.path(outdir,filestr))){dir.create(file.path(outdir,filestr))}
+if(!dir.exists(file.path(outdir,filestr,"FigTab"))){dir.create(file.path(outdir,filestr,"FigTab"))}
+if(!dir.exists(file.path(outdir,filestr,"UncPredMats"))){dir.create(file.path(outdir,filestr,"UncPredMats"))}
 
 ## read data -------
 
@@ -39,18 +47,293 @@ pigswsite<-readRDS(file.path(objdir,"geolocsnatl_wDispl.rds"))
 #Read in formatted wastershed shapefile
 wash<-readRDS(file.path(objdir,"wash_envcov_final.rds"))
 
-#Read in X sel table/X vec list
-X_sel=readRDS(file.path(objdir,"X_sel.rds"))
-X_vec_list=readRDS(file.path(objdir,"X_vec_list.rds"))
-
-#read in optimal hyperparameter sets
-sl.opt.params.kfold=read.csv(file.path(outdir,X_sel[1,3],"sl_bestmodelparams.csv"))
-sigma.sl.opt.params.kfold=read.csv(file.path(outdir,X_sel[2,3],"sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold=read.csv(file.path(outdir,X_sel[3,3],"disp_bestmodelparams.csv"))
-sigma.disp.opt.params.kfold=read.csv(file.path(outdir,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
-
 #get helper shapefiles
 usplot <- st_read(dsn = file.path(objdir,"usmapplot_best.shp"), layer = "usmapplot_best")
+
+#Need do this again bc this script runs on hpc
+# Make model selection table ---------------------------
+#Need do this again bc this script runs on hpc
+
+#make table with all mean R2 and RMSEs
+#row for each response (5)
+#col for each 2 metrics (RMSE and R2) and 4 models (full, drop01, lassodrop, null)
+
+#initiate tables, region and random cv methods
+model.sel.tbl=as.data.frame(matrix(nrow=4,ncol=8))
+rownames(model.sel.tbl)=c("step length", "step length sigma", "displacement", "disp. sigma")
+colnames(model.sel.tbl)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
+model.sel.tbl.region=as.data.frame(matrix(nrow=4,ncol=8))
+rownames(model.sel.tbl.region)=c("step length", "step length sigma", "displacement", "disp. sigma")
+colnames(model.sel.tbl.region)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
+
+#Full model: get values from file
+full.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","sl_meanRMSE.csv"))
+full.R2.sl=read.csv(file.path(outdir,filestr,"Random","sl_meanR2.csv"))
+full.RMSE.sigma.sl=read.csv(file.path(outdir,filestr,"Random","sigma.sl_meanRMSE.csv"))
+full.R2.sigma.sl=read.csv(file.path(outdir,filestr,"Random","sigma.sl_meanR2.csv"))
+full.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","disp_meanRMSE.csv"))
+full.R2.disp=read.csv(file.path(outdir,filestr,"Random","disp_meanR2.csv"))
+full.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","sigma.disp_meanRMSE.csv"))
+full.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","sigma.disp_meanR2.csv"))
+
+#Full model region kfold: get values from file
+full.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","sl_meanRMSE.csv"))
+full.R2.sl.region=read.csv(file.path(outdir,filestr,"Region","sl_meanR2.csv"))
+full.RMSE.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","sigma.sl_meanRMSE.csv"))
+full.R2.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","sigma.sl_meanR2.csv"))
+full.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","disp_meanRMSE.csv"))
+full.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","disp_meanR2.csv"))
+full.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","sigma.disp_meanRMSE.csv"))
+full.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","sigma.disp_meanR2.csv"))
+
+#Drop01 model: get vals
+drop01.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sl_meanRMSE.csv"))
+drop01.R2.sl=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sl_meanR2.csv"))
+drop01.RMSE.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sigma.sl_meanRMSE.csv"))
+drop01.R2.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sigma.sl_meanR2.csv"))
+drop01.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","disp_meanRMSE.csv"))
+drop01.R2.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","disp_meanR2.csv"))
+drop01.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sigma.disp_meanRMSE.csv"))
+drop01.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_01Drop","sigma.disp_meanR2.csv"))
+
+#Drop01 region kfold model: get vals
+drop01.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sl_meanRMSE.csv"))
+drop01.R2.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sl_meanR2.csv"))
+drop01.RMSE.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.sl_meanRMSE.csv"))
+drop01.R2.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.sl_meanR2.csv"))
+drop01.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","disp_meanRMSE.csv"))
+drop01.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","disp_meanR2.csv"))
+drop01.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.disp_meanRMSE.csv"))
+drop01.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.disp_meanR2.csv"))
+
+#lasso model: get vals
+lasso.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sl_meanRMSE.csv"))
+lasso.R2.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sl_meanR2.csv"))
+lasso.RMSE.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.sl_meanRMSE.csv"))
+lasso.R2.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.sl_meanR2.csv"))
+lasso.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","disp_meanRMSE.csv"))
+lasso.R2.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","disp_meanR2.csv"))
+lasso.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.disp_meanRMSE.csv"))
+lasso.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.disp_meanR2.csv"))
+
+#lasso model region kfold: get vals
+lasso.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sl_meanRMSE.csv"))
+lasso.R2.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sl_meanR2.csv"))
+lasso.RMSE.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.sl_meanRMSE.csv"))
+lasso.R2.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.sl_meanR2.csv"))
+lasso.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","disp_meanRMSE.csv"))
+lasso.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","disp_meanR2.csv"))
+lasso.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.disp_meanRMSE.csv"))
+lasso.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.disp_meanR2.csv"))
+
+#null model: get vals
+null.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sl_meanRMSE.csv"))
+null.R2.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Null/sl_meanR2.csv"))
+null.RMSE.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sigma.sl_meanRMSE.csv"))
+null.R2.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sigma.sl_meanR2.csv"))
+null.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","disp_meanRMSE.csv"))
+null.R2.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","disp_meanR2.csv"))
+null.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sigma.disp_meanRMSE.csv"))
+null.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sigma.disp_meanR2.csv"))
+
+#null model region: get vals
+null.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sl_meanRMSE.csv"))
+null.R2.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sl_meanR2.csv"))
+null.RMSE.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sigma.sl_meanRMSE.csv"))
+null.R2.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sigma.sl_meanR2.csv"))
+null.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","disp_meanRMSE.csv"))
+null.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","disp_meanR2.csv"))
+null.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sigma.disp_meanRMSE.csv"))
+null.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Null","sigma.disp_meanR2.csv"))
+
+#col 1,2: full model rmse, r2
+#row 1: sl
+model.sel.tbl[1,1]=round(full.RMSE.sl[1,2],3)
+model.sel.tbl[1,2]=round(full.R2.sl[1,2],3)
+#row 2: sigma sl
+model.sel.tbl[2,1]=round(full.RMSE.sigma.sl[1,2],3)
+model.sel.tbl[2,2]=round(full.R2.sigma.sl[1,2],3)
+#row 3: disp
+model.sel.tbl[3,1]=round(full.RMSE.disp[1,2],3)
+model.sel.tbl[3,2]=round(full.R2.disp[1,2],3)
+#row 4: sigma disp
+model.sel.tbl[4,1]=round(full.RMSE.sigma.disp[1,2],3)
+model.sel.tbl[4,2]=round(full.R2.sigma.disp[1,2],3)
+
+#col 3,4: drop01 rmse, r2
+#row 1: sl
+model.sel.tbl[1,3]=round(drop01.RMSE.sl[1,2],3)
+model.sel.tbl[1,4]=round(drop01.R2.sl[1,2],3)
+#row 2: sigma sl
+model.sel.tbl[2,3]=round(drop01.RMSE.sigma.sl[1,2],3)
+model.sel.tbl[2,4]=round(drop01.R2.sigma.sl[1,2],3)
+#row 3: disp
+model.sel.tbl[3,3]=round(drop01.RMSE.disp[1,2],3)
+model.sel.tbl[3,4]=round(full.R2.disp[1,2],3)
+#row 4: sigma disp
+model.sel.tbl[4,3]=round(drop01.RMSE.sigma.disp[1,2],3)
+model.sel.tbl[4,4]=round(drop01.R2.sigma.disp[1,2],3)
+
+#col 5,6: lasso drop
+#row 1: sl
+model.sel.tbl[1,5]=round(lasso.RMSE.sl[1,2],3)
+model.sel.tbl[1,6]=round(lasso.R2.sl[1,2],3)
+#row 2: sigma sl
+model.sel.tbl[2,5]=round(lasso.RMSE.sigma.sl[1,2],3)
+model.sel.tbl[2,6]=round(lasso.R2.sigma.sl[1,2],3)
+#row 3: disp
+model.sel.tbl[3,5]=round(lasso.RMSE.disp[1,2],3)
+model.sel.tbl[3,6]=round(lasso.R2.disp[1,2],3)
+#row 4: sigma disp
+model.sel.tbl[4,5]=round(lasso.RMSE.sigma.disp[1,2],3)
+model.sel.tbl[4,6]=round(lasso.R2.sigma.disp[1,2],3)
+
+#col 7,8: null model rmse, r2
+#row 1: sl
+model.sel.tbl[1,7]=round(null.RMSE.sl[1,2],3)
+model.sel.tbl[1,8]=round(null.R2.sl[1,2],3)
+#row 2: sigma sl
+model.sel.tbl[2,7]=round(null.RMSE.sigma.sl[1,2],3)
+model.sel.tbl[2,8]=round(null.R2.sigma.sl[1,2],3)
+#row 3: disp
+model.sel.tbl[3,7]=round(null.RMSE.disp[1,2],3)
+model.sel.tbl[3,8]=round(null.R2.disp[1,2],3)
+#row 4: sigma disp
+model.sel.tbl[4,7]=round(null.RMSE.sigma.disp[1,2],3)
+model.sel.tbl[4,8]=round(null.R2.sigma.disp[1,2],3)
+
+#col 1,2: region full model rmse, r2
+#row 1: sl
+model.sel.tbl.region[1,1]=round(full.RMSE.sl.region[1,2],3)
+model.sel.tbl.region[1,2]=round(full.R2.sl.region[1,2],3)
+#row 2: sigma sl
+model.sel.tbl.region[2,1]=round(full.RMSE.sigma.sl.region[1,2],3)
+model.sel.tbl.region[2,2]=round(full.R2.sigma.sl.region[1,2],3)
+#row 3: disp
+model.sel.tbl.region[3,1]=round(full.RMSE.disp.region[1,2],3)
+model.sel.tbl.region[3,2]=round(full.R2.disp.region[1,2],3)
+#row 4: sigma disp
+model.sel.tbl.region[4,1]=round(full.RMSE.sigma.disp.region[1,2],3)
+model.sel.tbl.region[4,2]=round(full.R2.sigma.disp.region[1,2],3)
+
+#col 3,4: region drop01 model rmse, r2
+#row 1: sl
+model.sel.tbl.region[1,3]=round(drop01.RMSE.sl.region[1,2],3)
+model.sel.tbl.region[1,4]=round(drop01.R2.sl.region[1,2],3)
+#row 2: sigma sl
+model.sel.tbl.region[2,3]=round(drop01.RMSE.sigma.sl.region[1,2],3)
+model.sel.tbl.region[2,4]=round(drop01.R2.sigma.sl.region[1,2],3)
+#row 3: disp
+model.sel.tbl.region[3,3]=round(drop01.RMSE.disp.region[1,2],3)
+model.sel.tbl.region[3,4]=round(drop01.R2.disp.region[1,2],3)
+#row 4: sigma disp
+model.sel.tbl.region[4,3]=round(drop01.RMSE.sigma.disp.region[1,2],3)
+model.sel.tbl.region[4,4]=round(drop01.R2.sigma.disp.region[1,2],3)
+
+#col 5,6: region lasso model rmse, r2
+#row 1: sl
+model.sel.tbl.region[1,5]=round(lasso.RMSE.sl.region[1,2],3)
+model.sel.tbl.region[1,6]=round(lasso.R2.sl.region[1,2],3)
+#row 2: sigma sl
+model.sel.tbl.region[2,5]=round(lasso.RMSE.sigma.sl.region[1,2],3)
+model.sel.tbl.region[2,6]=round(lasso.R2.sigma.sl.region[1,2],3)
+#row 3: disp
+model.sel.tbl.region[3,5]=round(lasso.RMSE.disp.region[1,2],3)
+model.sel.tbl.region[3,6]=round(lasso.R2.disp.region[1,2],3)
+#row 4: sigma disp
+model.sel.tbl.region[4,5]=round(lasso.RMSE.sigma.disp.region[1,2],3)
+model.sel.tbl.region[4,6]=round(lasso.R2.sigma.disp.region[1,2],3)
+
+#col 7,8: region null model rmse, r2
+#row 1: sl
+model.sel.tbl.region[1,7]=round(null.RMSE.sl.region[1,2],3)
+model.sel.tbl.region[1,8]=round(null.R2.sl.region[1,2],3)
+#row 2: sigma sl
+model.sel.tbl.region[2,7]=round(null.RMSE.sigma.sl.region[1,2],3)
+model.sel.tbl.region[2,8]=round(null.R2.sigma.sl.region[1,2],3)
+#row 3: disp
+model.sel.tbl.region[3,7]=round(null.RMSE.disp.region[1,2],3)
+model.sel.tbl.region[3,8]=round(null.R2.disp.region[1,2],3)
+#row 4: sigma disp
+model.sel.tbl.region[4,7]=round(null.RMSE.sigma.disp.region[1,2],3)
+model.sel.tbl.region[4,8]=round(null.R2.sigma.disp.region[1,2],3)
+
+model.sel.tbl.total=as.data.frame(matrix(nrow=4,ncol=16))
+rownames(model.sel.tbl.total)=c("step length", "step length sigma", "displacement", "disp. sigma")
+colnames(model.sel.tbl.total)=c("full RMSE random", "full r2 random", "drop 01 RMSE random", "drop 01 r2 random", "lasso RMSE random", "lasso r2 random", "null RMSE random", "null R2 random",
+                                "full RMSE region", "full r2 region", "drop 01 RMSE region", "drop 01 r2 region", "lasso RMSE region", "lasso r2 region", "null RMSE region", "null R2region")
+
+model.sel.tbl.total[1:4,1:8]=model.sel.tbl
+model.sel.tbl.total[1:4,9:16]=model.sel.tbl.region
+
+model.sel.tbl.total=model.sel.tbl.total[,-c(2,4,6,8,10,12,14,16)]
+
+write.csv(model.sel.tbl.total,file.path(outdir,filestr,"FigTab","ModelSelTblTotal.csv"))
+
+# Make xsel/xvec -------
+
+getXvec<-function(model.sel.tbl.total,out.opt){
+  X_vec_list=vector(mode="list",length=4)
+  names(X_vec_list)<-c("Xsl","sigmasl","Xdisp","sigmadisp")
+  
+  X_sel=data.frame(matrix(nrow=4,ncol=4))
+  colnames(X_sel)<-c("response","X_vec","reg_ran","vars")
+  
+  for(i in 1:nrow(model.sel.tbl.total)){
+    X_sel[i,1]=rownames(model.sel.tbl.total)[i]
+    c_ind=which(model.sel.tbl.total[i,]==min(model.sel.tbl.total[i,]))
+    X_sel[i,2]=colnames(model.sel.tbl.total)[c_ind]
+  }
+  
+  #parse text in X sel: region or random
+  X_sel[grep("region",X_sel$X_vec),3]<-"Region"
+  X_sel[grep("random",X_sel$X_vec),3]<-"Random"
+  
+  #parse text in X sel: variable sel
+  X_sel[grep("full",X_sel$X_vec),4]<-"Full"
+  X_sel[grep("drop 01",X_sel$X_vec),4]<-"X_vec_01Drop"
+  X_sel[grep("lasso",X_sel$X_vec),4]<-"X_vec_postlasso"
+  X_sel[grep("null",X_sel$X_vec),4]<-"Null"
+  
+  if(out.opt=="X_sel"){
+    return(X_sel)
+  } else{
+    
+    for(i in 1:length(X_vec_list)){
+      if(X_sel[i,4]=="Full"){
+        X_vec_list[[i]]<-c(
+          which(colnames(pigsums)=="sex"),
+          which(colnames(pigsums)=="season"),
+          which(colnames(pigsums)=="period"),
+          which(colnames(pigsums)=="mean_tc"):
+            which(colnames(pigsums)=="var_lc_24")
+        )
+      }
+      if(X_sel[i,4]=="X_vec_01Drop"|X_sel[i,4]=="X_vec_postlasso"){
+        X_vec_folder=file.path(outdir,filestr,X_sel[i,3],X_sel[i,4])
+        Xfiles=list.files(X_vec_folder,full.names=TRUE)
+        Xfile=Xfiles[grep(names(X_vec_list)[i],Xfiles)]
+        X_vec_list[[i]]=read.csv(Xfile)[,2]
+      }
+      
+      if(X_sel[i,4]=="Null"){
+        X_vec_list[[i]]=rep(1,nrow(pigsums))
+      }
+    }
+    
+    return(X_vec_list)
+  }
+}
+
+
+X_sel=getXvec(model.sel.tbl.total,"X_sel")
+
+sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"sl_bestmodelparams.csv"))
+sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[2,3],"sigma.sl_bestmodelparams.csv"))
+disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"disp_bestmodelparams.csv"))
+sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
+
+X_vec_list=getXvec(model.sel.tbl.total,"Xlist")
 
 ## format data -------
 
@@ -181,8 +464,6 @@ RunUncertaintyParallel<-function(clustnum,pigsums2,
 }
 
 #Make function to average the quarters to get single uncertainty matrix
-pmat.str="sigmadisp_pmat"
-pmat.path=path.ut
 AverageQuarters<-function(pmat.path,pmat.str){
   pmat.fs=list.files(pmat.path,full.names=TRUE)
   pmat.fs=pmat.fs[grep(pmat.str,pmat.fs)]
@@ -216,14 +497,14 @@ AverageQuarters<-function(pmat.path,pmat.str){
 }
 
 # Run function for each response and q ------------------
-if(!dir.exists(file.path(objdir,"UncPredMats"))){dir.create(file.path(objdir,"UncPredMats"))}
+if(!dir.exists(file.path(outdir,filestr,"UncPredMats"))){dir.create(file.path(outdir,filestr,"UncPredMats"))}
 
-path.out=file.path(objdir,"UncPredMats")
+path.out=file.path(outdir,filestr,"UncPredMats")
 
 ### SL ------------------
 
-RunUncertaintyParallel(4,
-                       pigsums_sl,wash,1000,
+RunUncertaintyParallel(clustnum,
+                       pigsums_sl,wash,reps,
                        sl.opt.params.kfold,
                        X_vec_list$Xsl,
                        "sl_mean","poisson",
@@ -233,8 +514,8 @@ AverageQuarters(path.out,"sl_pmat")
 
 ### Sigma SL ------------------
 
-RunUncertaintyParallel(4,
-                       pigsums_sigmasl,wash,1000,
+RunUncertaintyParallel(clustnum,
+                       pigsums_sigmasl,wash,reps,
                        sigma.sl.opt.params.kfold,
                        X_vec_list$sigmasl,
                        "sl_disp","gaussian",
@@ -244,8 +525,8 @@ AverageQuarters(path.out,"sigmasl_pmat")
 
 ### Disp ------------------
 
-RunUncertaintyParallel(4,
-                       pigsums_disp,wash,1000,
+RunUncertaintyParallel(clustnum,
+                       pigsums_disp,wash,reps,
                        disp.opt.params.kfold,
                        X_vec_list$sigmadisp,
                        "displ_mean","poisson",
@@ -255,7 +536,7 @@ AverageQuarters(path.out,"disp_pmat")
 
 ### Sigma Disp ------------------
 
-RunUncertaintyParallel(4,
+RunUncertaintyParallel(clustnum,
                        pigsums_sigmadisp,wash,1000,
                        sigma.disp.opt.params.kfold,
                        X_vec_list$Xdisp,
@@ -263,7 +544,6 @@ RunUncertaintyParallel(4,
                        path.out,"sigmadisp_pmat")
 
 AverageQuarters(path.out,"sigmadisp_pmat")
-
 
 
 
