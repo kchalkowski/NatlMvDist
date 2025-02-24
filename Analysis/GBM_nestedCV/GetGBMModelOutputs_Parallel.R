@@ -1,4 +1,4 @@
-home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
+home="/home/kayleigh.chalkowski/RR_GBM"
 
 ##Identifying optimal parameters for gradient boosted models
 
@@ -9,7 +9,7 @@ home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/Sta
 # Set variables ----------------
 
 #vars that need to be changed from run to run
-repname="Parallel_Test"
+repname="Parallel_Test_CPUX2"
 
 # Process Outline ----------------
 
@@ -21,6 +21,7 @@ repname="Parallel_Test"
 setwd(home)
 #set path where gbm functions live
 gbm_funcdir=file.path(home,"1_Scripts","Analysis","GBM_nestedCV","GBM_Functions", fsep = .Platform$file.sep)
+
 #set objdir
 objdir=file.path(home,"2_Data","Objects", fsep = .Platform$file.sep)
 
@@ -29,18 +30,13 @@ require(tidyverse)
 require(dplyr)
 require(dismo)
 require(gbm)
-require(SHAPforxgboost)
 require(caret)
-require(ggplot2)
 require(glmnet)
 library(doParallel)
 library(foreach)
 
-#c("dplyr","dismo","gbm","caret","glmnet")
-
 #read data
 pigsums=readRDS(file.path(objdir,"dailyPigSums.rds", fsep = .Platform$file.sep))
-
 
 # Format Data ----------------
 
@@ -82,24 +78,56 @@ distributions=c("poisson","gaussian","poisson","gaussian")
 pigsums_list=list(pigsums_sl,pigsums_sigmasl,pigsums_displ,pigsums_sigmadisp)
 
 #Loop through each split type
+print("entering split type loop")
 for(s in 1:2){
   split_type=split_types[s]
-  cl <- parallel::makeCluster(4)
+  print("parallel makeCluster")
+  cl <- parallel::makeCluster(4, setup_strategy="sequential")
+  print("registerdoparallel")
   doParallel::registerDoParallel(cl)
   #Loop through each of four responses
-  foreach(r=1:4) %dopar% {
-    .GlobalEnv$gbm.dir <- gbm.dir
+  print("entering foreach")
+  foreach(r=1:4,.packages=c("tidyverse","dplyr","dismo","gbm","caret","glmnet")) %dopar% {
+    home="/home/kayleigh.chalkowski/RR_GBM"
+    gbm_funcdir=file.path(home,"1_Scripts","Analysis","GBM_nestedCV","GBM_Functions", fsep = .Platform$file.sep)
+    objdir=file.path(home,"2_Data","Objects", fsep = .Platform$file.sep)
+    
+    slp=runif(1,1.00,10.00)
+    Sys.sleep(slp)
+    
+    pigsums=readRDS(file.path(objdir,"dailyPigSums.rds", fsep = .Platform$file.sep))
+    pigsums_sl=readRDS(file.path(objdir,"pigsums_sl.rds"))
+    pigsums_displ=readRDS(file.path(objdir,"pigsums_displ.rds"))
+    pigsums_sigmasl=readRDS(file.path(objdir,"pigsums_sigmasl.rds"))
+    pigsums_sigmadisp=readRDS(file.path(objdir,"pigsums_sigmadisp.rds"))
+    
+    split_types=c("Region","Random")
+    responses=colnames(pigsums)[59:62]
+    response_strings=c("sl","sigma.sl","disp","sigma.disp")
+    distributions=c("poisson","gaussian","poisson","gaussian")
+    pigsums_list=list(pigsums_sl,pigsums_sigmasl,pigsums_displ,pigsums_sigmadisp)
+    
+    .GlobalEnv$gbm_funcdir <- gbm_funcdir
     .GlobalEnv$responses <- responses
     .GlobalEnv$response_strings <- response_strings
     .GlobalEnv$distributions <- distributions
     .GlobalEnv$pigsums_list <- pigsums_list
+    .GlobalEnv$home <- home
     
+    slp=runif(1,1.00,10.00)
+    Sys.sleep(slp)
+    source(file.path(gbm_funcdir,"GBM_FunctionSourcer.R", fsep = .Platform$file.sep))
     response=responses[r]
     response_str=response_strings[r]
     distribution=distributions[r]
     pigsums=pigsums_list[[r]]
     
-    MakeAllGBMOutputs(repname,split_type,pigsums,response,response_str,distribution)
+    filestr=paste("4_Outputs",repname,split_type,sep="/")
+    if(!dir.exists(file.path("4_Outputs/",repname, fsep = .Platform$file.sep))){dir.create(file.path("4_Outputs/",repname, fsep = .Platform$file.sep))}
+    if(!dir.exists(filestr)){dir.create(filestr)}
+    path=file.path(home,filestr,fsep = .Platform$file.sep)
+    
+    MakeAllGBMOutputs(path,split_type,pigsums,response,response_str,distribution)
     
   }
   parallel::stopCluster(cl)
