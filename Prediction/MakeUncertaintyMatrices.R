@@ -480,16 +480,6 @@ AverageQuarters<-function(pmat.path,pmat.str){
   allqmat=abind(pmat_1,pmat_2,pmat_3,pmat_4,along=3)
   allqmat2=(rowSums(allqmat, dims = 2))/4
   
-  #remove individual q files
-  print(paste0("Removing ",pmat.fs[1]))
-  file.remove(pmat.fs[1])
-  print(paste0("Removing ",pmat.fs[2]))
-  file.remove(pmat.fs[2])
-  print(paste0("Removing ",pmat.fs[3]))
-  file.remove(pmat.fs[3])
-  print(paste0("Removing ",pmat.fs[4]))
-  file.remove(pmat.fs[4])
-  
   #Saving final pmat file
   print(paste0("Saving seasonally-averaged ",pmat.str))
   saveRDS(allqmat2,file.path(pmat.path,paste0(pmat.str,".rds")))
