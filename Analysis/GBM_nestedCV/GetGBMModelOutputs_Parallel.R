@@ -1,4 +1,5 @@
 home="/home/kayleigh.chalkowski/RR_GBM"
+#home<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
 
 ##Identifying optimal parameters for gradient boosted models
 
