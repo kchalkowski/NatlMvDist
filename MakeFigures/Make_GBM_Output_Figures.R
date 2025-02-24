@@ -525,7 +525,7 @@ relinf.pg=plot_grid(
   label_size=50
 )
 
-png(file=paste(home,"Outputs/YFigureOutputs/26APR23_FigureSet/rel_infl_charts/relinfplots_08MAY_sl.png",sep="/"),
+png(file=file.path(home,"Outputs/YFigureOutputs/26APR23_FigureSet/rel_infl_charts/relinfplots_08MAY_sl.png",sep="/"),
     width=2550, height=2550)
 relinf.pg
 dev.off()
