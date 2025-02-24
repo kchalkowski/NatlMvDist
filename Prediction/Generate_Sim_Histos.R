@@ -27,6 +27,8 @@ wash<-readRDS(file.path(objdir,"wash_envcov_final.rds"))
 
 #read in uncertainty matrices
 unc.fs=list.files(file.path(outdir,filestr,"UncPredMats"),full.names=TRUE)
+#keep quarterly ones
+unc.fs=unc.fs[grep("q",unc.fs)]
 
 #source functions, reldiffhistoutil
 source(file.path(home,"1_Scripts","Prediction","Functions","reldiffhistos2.R"))
@@ -35,7 +37,6 @@ source(file.path(home,"1_Scripts","Prediction","Functions","reldiffhistos2.R"))
 
 #read in uncertainty matrices
 #pmat.list=list.files(paste0(getwd(),"/Outputs/PredMats_22APR23/"))
-pmat.dir=paste0(home,"/Outputs/PredMats_22APR23/")
 season=c("q1","q2","q3","q4")
 response.disp=c("sigmasl","sigmadisp")
 response.mean=c("sl","disp")
@@ -44,84 +45,77 @@ response.mean=c("sl","disp")
 bootwash=matrix(nrow=0,ncol=105)
 colnames(bootwash)<-c("season","response","objecti","u","disp",1:100)
 
-
-#Make loop
-#season
-
+#loop through season
 for(s in 1:length(season)){
   print(paste0("season: ",season[s]))
-  #for each response
+  
+  #loop through reasons
   for(r in 1:length(response.mean)){
+    
     print(paste0("response: ", response.mean[r]))
-    minibootwash=as.data.frame(matrix(nrow=length(wash.IDs),ncol=105))
+    minibootwash=as.data.frame(matrix(nrow=nrow(wash),ncol=105))
     colnames(minibootwash)<-c("season","response","objecti","u","disp",1:100)
     minibootwash[,1]=season[s]
     minibootwash[,2]=response.mean[r]
-    minibootwash[,3]=wash.IDs
+    minibootwash[,3]=1:nrow(wash)
+
     print("reading pmat files")
-    pmat.mean.dir.file=paste0("pmat_",season[s],"_",response.mean[r],".csv")
-    pmat.disp.dir.file=paste0("pmat_",season[s],"_",response.disp[r],".csv")
-    pmat=read.csv(paste0(pmat.dir,pmat.mean.dir.file))
-    pmat=as.matrix(pmat)
-    pmat=pmat[,-1]
-    pmat.disp=read.csv(paste0(pmat.dir,pmat.disp.dir.file))
-    pmat.disp=as.matrix(pmat.disp)
-    pmat.disp=pmat.disp[,-1]
-    print("read pmat files")
+    
+    #pull needed season
+    str=unc.fs[grep(paste0(s,".rds"),unc.fs)]
+    #read pmats
+    pmat=readRDS(str[grep(paste0("/",response.mean[r]),str)])
+    pmat.disp=readRDS(str[grep(response.disp[r],str)])
     
     #for each watershed (row)
     for(i in 1:nrow(pmat)){
       print(paste0("wash: ", i))
-      #make distribution from each mean and disp/var
-      u=mean(pmat[i,])
-      disp=mean(pmat.disp[i,])
-      minibootwash[i,4]=u
-      minibootwash[i,5]=disp
-      gampams=gammaGetShapeRate(u,disp)
       
+      #make distribution from each mean and disp/var
+      minibootwash[i,4]=mean(pmat[i,])
+      minibootwash[i,5]=mean(pmat.disp[i,])
+      gampams=simstudy::gammaGetShapeRate(minibootwash[i,4],minibootwash[i,5])
+      
+      #sample values from mean distribution
       minibootwash[i,6:105]=rgamma(100,shape=gampams$shape,rate=gampams$rate)
       
-      #sample 100 values from that distribution
-      #place 100 values in new wash mat
     }
+    
     bootwash=rbind(bootwash,minibootwash)
     
   }
 }
 
 
-saveRDS(bootwash,paste0(outdir,"bootwash.rds"))
+saveRDS(bootwash,paste0(file.path(outdir,filestr,"UncPredMats"),"bootwash.rds"))
 
+#slq1=bootwash[bootwash$season=="q1"&bootwash$response=="sl",]
+#dispq1=bootwash[bootwash$season=="q1"&bootwash$response=="disp",]
+#slq2=bootwash[bootwash$season=="q2"&bootwash$response=="sl",]
+#dispq2=bootwash[bootwash$season=="q2"&bootwash$response=="disp",]
+#slq3=bootwash[bootwash$season=="q3"&bootwash$response=="sl",]
+#dispq3=bootwash[bootwash$season=="q3"&bootwash$response=="disp",]
+#slq4=bootwash[bootwash$season=="q4"&bootwash$response=="sl",]
+#dispq4=bootwash[bootwash$season=="q4"&bootwash$response=="disp",]
+#df2.q1=data.frame(type="boots",sl=unlist(c(slq1[,6:8])),disp=unlist(c(dispq1[,6:8])))
+#df2.q2=data.frame(type="boots",sl=unlist(c(slq2[,6:8])),disp=unlist(c(dispq2[,6:8])))
+#df2.q3=data.frame(type="boots",sl=unlist(c(slq3[,6:8])),disp=unlist(c(dispq3[,6:8])))
+#df2.q4=data.frame(type="boots",sl=unlist(c(slq4[,6:8])),disp=unlist(c(dispq4[,6:8])))
+#write.csv(df2.q1,paste0(outdir,"df2.q1.csv"))
+#write.csv(df2.q2,paste0(outdir,"df2.q2.csv"))
+#write.csv(df2.q3,paste0(outdir,"df2.q3.csv"))
+#write.csv(df2.q4,paste0(outdir,"df2.q4.csv"))
+#write.csv(pigs.q1,paste0(outdir,"pigs.q1.csv"))
+#write.csv(pigs.q2,paste0(outdir,"pigs.q2.csv"))
+#write.csv(pigs.q3,paste0(outdir,"pigs.q3.csv"))
+#write.csv(pigs.q4,paste0(outdir,"pigs.q4.csv"))
 
-
-slq1=bootwash[bootwash$season=="q1"&bootwash$response=="sl",]
-dispq1=bootwash[bootwash$season=="q1"&bootwash$response=="disp",]
-
-slq2=bootwash[bootwash$season=="q2"&bootwash$response=="sl",]
-dispq2=bootwash[bootwash$season=="q2"&bootwash$response=="disp",]
-
-slq3=bootwash[bootwash$season=="q3"&bootwash$response=="sl",]
-dispq3=bootwash[bootwash$season=="q3"&bootwash$response=="disp",]
-
-slq4=bootwash[bootwash$season=="q4"&bootwash$response=="sl",]
-dispq4=bootwash[bootwash$season=="q4"&bootwash$response=="disp",]
-
-df2.q1=data.frame(type="boots",sl=unlist(c(slq1[,6:8])),disp=unlist(c(dispq1[,6:8])))
-df2.q2=data.frame(type="boots",sl=unlist(c(slq2[,6:8])),disp=unlist(c(dispq2[,6:8])))
-df2.q3=data.frame(type="boots",sl=unlist(c(slq3[,6:8])),disp=unlist(c(dispq3[,6:8])))
-df2.q4=data.frame(type="boots",sl=unlist(c(slq4[,6:8])),disp=unlist(c(dispq4[,6:8])))
-
-write.csv(df2.q1,paste0(outdir,"df2.q1.csv"))
-write.csv(df2.q2,paste0(outdir,"df2.q2.csv"))
-write.csv(df2.q3,paste0(outdir,"df2.q3.csv"))
-write.csv(df2.q4,paste0(outdir,"df2.q4.csv"))
-
-write.csv(pigs.q1,paste0(outdir,"pigs.q1.csv"))
-write.csv(pigs.q2,paste0(outdir,"pigs.q2.csv"))
-write.csv(pigs.q3,paste0(outdir,"pigs.q3.csv"))
-write.csv(pigs.q4,paste0(outdir,"pigs.q4.csv"))
+#df2.qX are matrices, split up by response/q, with only predicted values
 
 # Make histograms ---------------------
+#Make histogram for each season/response [q1:4, sl/disp]
+#simplify this
+
 #now in Prediction/Functions
 p.q1.sl=RelDiffHisto_util(top=df2.q1$sl,bottom=pigs.q1$sl_,20,"sl","q1",3)
 p.q2.sl=RelDiffHisto_util(top=df2.q2$sl,bottom=pigs.q2$sl_,20,"sl","q2",3)
@@ -143,8 +137,6 @@ p.q2.di=RelDiffHisto_util(top=df2.q2$disp,bottom=pigs.q2[which(pigs.q2$displacem
 p.q3.di=RelDiffHisto_util(top=df2.q3$disp,bottom=pigs.q3[which(pigs.q3$displacement<2.35e6),]$displacement,20,"disp","q3", 0.15,tail=TRUE,9)
 p.q4.di=RelDiffHisto_util(top=df2.q4$disp,bottom=pigs.q4[which(pigs.q4$displacement<2.35e6),]$displacement,20,"disp","q4", 0.15,tail=TRUE,9)
 
-#########
-
 ggsave(paste0(outdir,"hist.q1.sl2_tail.png"),plot=p.q1.sl,width=4,height=8)
 ggsave(paste0(outdir,"hist.q2.sl2_tail.png"),plot=p.q2.sl,width=4,height=8)
 ggsave(paste0(outdir,"hist.q3.sl2_tail.png"),plot=p.q3.sl,width=4,height=8)
@@ -156,7 +148,6 @@ ggsave(paste0(outdir,"hist.q3.di2_tail.png"),plot=p.q3.di,width=4,height=8)
 ggsave(paste0(outdir,"hist.q4.di2_tail.png"),plot=p.q4.di,width=4,height=8)
 
 # Do KS tests ---------------------
-
 
 #vectors to go through ks stats
 #steps
