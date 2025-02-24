@@ -20,7 +20,7 @@ outdir<-file.path(home,"4_Outputs")
 objdir<-file.path(home,"2_Data","Objects")
 
 #read geolocation data
-pigs<-readRDS(file.path(objdir,"geolocsnatl_wDispl.rds"))
+pigs<-readRDS(file.path(objdir,"allsteps_daily.rds"))
 
 #read watersheds
 wash<-readRDS(file.path(objdir,"wash_envcov_final.rds"))
@@ -89,7 +89,7 @@ for(s in 1:length(season)){
 
 saveRDS(bootwash,paste0(file.path(outdir,filestr,"UncPredMats"),"bootwash.rds"))
 
-#slq1=bootwash[bootwash$season=="q1"&bootwash$response=="sl",]
+slq1=bootwash[bootwash$season=="q1"&bootwash$response=="sl",]
 #dispq1=bootwash[bootwash$season=="q1"&bootwash$response=="disp",]
 #slq2=bootwash[bootwash$season=="q2"&bootwash$response=="sl",]
 #dispq2=bootwash[bootwash$season=="q2"&bootwash$response=="disp",]
@@ -97,6 +97,8 @@ saveRDS(bootwash,paste0(file.path(outdir,filestr,"UncPredMats"),"bootwash.rds"))
 #dispq3=bootwash[bootwash$season=="q3"&bootwash$response=="disp",]
 #slq4=bootwash[bootwash$season=="q4"&bootwash$response=="sl",]
 #dispq4=bootwash[bootwash$season=="q4"&bootwash$response=="disp",]
+df2.q1=data.frame(type="boots",sl=unlist(c(slq1[,6:8])))
+
 #df2.q1=data.frame(type="boots",sl=unlist(c(slq1[,6:8])),disp=unlist(c(dispq1[,6:8])))
 #df2.q2=data.frame(type="boots",sl=unlist(c(slq2[,6:8])),disp=unlist(c(dispq2[,6:8])))
 #df2.q3=data.frame(type="boots",sl=unlist(c(slq3[,6:8])),disp=unlist(c(dispq3[,6:8])))
@@ -116,36 +118,27 @@ saveRDS(bootwash,paste0(file.path(outdir,filestr,"UncPredMats"),"bootwash.rds"))
 #Make histogram for each season/response [q1:4, sl/disp]
 #simplify this
 
-#now in Prediction/Functions
-p.q1.sl=RelDiffHisto_util(top=df2.q1$sl,bottom=pigs.q1$sl_,20,"sl","q1",3)
-p.q2.sl=RelDiffHisto_util(top=df2.q2$sl,bottom=pigs.q2$sl_,20,"sl","q2",3)
-p.q3.sl=RelDiffHisto_util(top=df2.q3$sl,bottom=pigs.q3$sl_,20,"sl","q3",3)
-p.q4.sl=RelDiffHisto_util(top=df2.q4$sl,bottom=pigs.q4$sl_,20,"sl","q4",3)
+#Make function to make histo for each response/quarter
+DoAllHisto<-function(pigs,bootwash,response){
+  coln=colnames(pigs)[grep(response,colnames(pigs))]
+  pigs2=pigs[!is.na(pigs[,which(colnames(pigs)==coln)]),]
+  
+  for(q in 1:4){
+    pigsq=pigs2[pigs2$season==as.factor(paste0("q",q)),which(colnames(pigs)==coln)]
+    df=bootwash[bootwash$season==paste0("q",q)&bootwash$response==response,]
+    df=data.frame(type="boots",response=unlist(c(df[,6:8])))
+    
+    pq=RelDiffHisto_util(top=df$response,bottom=pigsq,20,response,paste0("q",q))
+    histname=paste0("hist_q",q,"_",response,".png")
+    ggsave(paste0(outdir,filestr,histname),plot=pq,width=4,height=8)
+    
+  }
+  
+}
 
-p.q1.di=RelDiffHisto_util(top=df2.q1$disp,bottom=pigs.q1[which(pigs.q1$displacement<2.35e6),]$displacement,20,"disp","q1", 11)
-p.q2.di=RelDiffHisto_util(top=df2.q2$disp,bottom=pigs.q2[which(pigs.q2$displacement<2.35e6),]$displacement,20,"disp","q2", 11)
-p.q3.di=RelDiffHisto_util(top=df2.q3$disp,bottom=pigs.q3[which(pigs.q3$displacement<2.35e6),]$displacement,20,"disp","q3", 11)
-p.q4.di=RelDiffHisto_util(top=df2.q4$disp,bottom=pigs.q4[which(pigs.q4$displacement<2.35e6),]$displacement,20,"disp","q4", 11)
-
-p.q1.sl=RelDiffHisto_util(top=df2.q1$sl,bottom=pigs.q1$sl_,20,"sl","q1",0.05,tail=TRUE,6)
-p.q2.sl=RelDiffHisto_util(top=df2.q2$sl,bottom=pigs.q2$sl_,20,"sl","q2",0.05,tail=TRUE,6)
-p.q3.sl=RelDiffHisto_util(top=df2.q3$sl,bottom=pigs.q3$sl_,20,"sl","q3",0.05,tail=TRUE,6)
-p.q4.sl=RelDiffHisto_util(top=df2.q4$sl,bottom=pigs.q4$sl_,20,"sl","q4",0.05,tail=TRUE,6)
-
-p.q1.di=RelDiffHisto_util(top=df2.q1$disp,bottom=pigs.q1[which(pigs.q1$displacement<2.35e6),]$displacement,20,"disp","q1", 0.15,tail=TRUE,9)
-p.q2.di=RelDiffHisto_util(top=df2.q2$disp,bottom=pigs.q2[which(pigs.q2$displacement<2.35e6),]$displacement,20,"disp","q2", 0.15,tail=TRUE,9)
-p.q3.di=RelDiffHisto_util(top=df2.q3$disp,bottom=pigs.q3[which(pigs.q3$displacement<2.35e6),]$displacement,20,"disp","q3", 0.15,tail=TRUE,9)
-p.q4.di=RelDiffHisto_util(top=df2.q4$disp,bottom=pigs.q4[which(pigs.q4$displacement<2.35e6),]$displacement,20,"disp","q4", 0.15,tail=TRUE,9)
-
-ggsave(paste0(outdir,"hist.q1.sl2_tail.png"),plot=p.q1.sl,width=4,height=8)
-ggsave(paste0(outdir,"hist.q2.sl2_tail.png"),plot=p.q2.sl,width=4,height=8)
-ggsave(paste0(outdir,"hist.q3.sl2_tail.png"),plot=p.q3.sl,width=4,height=8)
-ggsave(paste0(outdir,"hist.q4.sl2_tail.png"),plot=p.q4.sl,width=4,height=8)
-
-ggsave(paste0(outdir,"hist.q1.di2_tail.png"),plot=p.q1.di,width=4,height=8)
-ggsave(paste0(outdir,"hist.q2.di2_tail.png"),plot=p.q2.di,width=4,height=8)
-ggsave(paste0(outdir,"hist.q3.di2_tail.png"),plot=p.q3.di,width=4,height=8)
-ggsave(paste0(outdir,"hist.q4.di2_tail.png"),plot=p.q4.di,width=4,height=8)
+#Run histos for all q, response
+DoAllHisto(pigs,bootwash,"sl")
+DoAllHisto(pigs,bootwash,"disp")
 
 # Do KS tests ---------------------
 
