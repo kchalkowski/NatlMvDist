@@ -84,8 +84,8 @@ typemeasure="mae"
 #some tidying of x, cant have characters
 x=pigsums[,X_vec.start]
 x$sexf=NA
-x[x$sex=="Male",]$sexf=1
-x[x$sex=="Female",]$sexf=0
+x[x$sex=="Male"|x$sex=="male",]$sexf=1
+x[x$sex=="Female"|x$sex=="female",]$sexf=0
 x=x[,-2]
 
 #make alpha search grid
