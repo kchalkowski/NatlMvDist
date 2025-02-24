@@ -18,19 +18,17 @@
 #distribution
     #poisson -sl/disp
     #gaussian -sigmasl/disp
-response=responses[r]
-response_str=response_strings[r]
-distribution=distributions[r]
-pigsums=pigsums_list[[r]]
-repname="21FEB24_Runs"
-split_type="Region"
+#response=responses[r]
+#response_str=response_strings[r]
+#distribution=distributions[r]
+#pigsums=pigsums_list[[r]]
+#repname="21FEB24_Runs"
+#split_type="Region"
 MakeAllGBMOutputs<-function(path,split_type,pigsums,response,response_str,distribution){
 
   #make addl folders
   if(!dir.exists(file.path(path,"X_vec_01Drop"))){dir.create(file.path(path,"X_vec_01Drop"))}
   if(!dir.exists(file.path(path,"GBM_01Drop"))){dir.create(file.path(path,"GBM_01Drop"))}
-  if(!dir.exists(file.path(path,"X_vec_postlasso"))){dir.create(file.path(path,"X_vec_postlasso"))}
-  if(!dir.exists(file.path(path,"GBM_Lasso"))){dir.create(file.path(path,"GBM_Lasso"))}
   if(!dir.exists(file.path(path,"GBM_Null"))){dir.create(file.path(path,"GBM_Null"))}
   
 #for testing
@@ -80,32 +78,6 @@ saveRDS(res[[6]],file.path(path,"GBM_01Drop",paste0(response_str,"_testobs.rds")
 #get list of remaining important variables to use
 nrep=100
 typemeasure="mae"
-
-#some tidying of x, cant have characters
-x=pigsums[,X_vec.start]
-x$sexf=NA
-x[x$sex=="Male"|x$sex=="male",]$sexf=1
-x[x$sex=="Female"|x$sex=="female",]$sexf=0
-x=x[,-2]
-
-#make alpha search grid
-grid=seq(0.01,1,by=0.01)
-
-#Run lasso on each model
-keepVars=runLassofunc(x,pigsums[,which(colnames(pigsums)==response)],distribution,grid,typemeasure,nrep)
-X_vec.lasso=which(colnames(pigsums)%in%names(keepVars))
-
-#Write out the post lasso X vecs
-write.csv(X_vec.lasso,file.path(path,"X_vec_postlasso",paste0("X",response,"_lasso.csv")))
-
-res=Run.GBM.Model(pigsums,response,X_vec.lasso,ko_t,ki_t,distribution,split_type,ntreemax=8000)
-  
-#Export CV stats
-write.csv(res[[2]],file.path(path,"GBM_Lasso",paste0(response_str,"_meanRMSE.csv")))
-write.csv(res[[3]],file.path(path,"GBM_Lasso",paste0(response_str,"_bestmodelparams.csv")))
-write.csv(res[[4]],file.path(path,"GBM_Lasso",paste0(response_str,"_meanR2.csv")))
-saveRDS(res[[5]],file.path(path,"GBM_Lasso",paste0(response_str,"_preds.rds")))
-saveRDS(res[[6]],file.path(path,"GBM_Lasso",paste0(response_str,"_testobs.rds")))
 
 pigsums$gbm.null=rep(1,nrow(pigsums))
 X_null=ncol(pigsums)
