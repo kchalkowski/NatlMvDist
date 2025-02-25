@@ -43,7 +43,7 @@ pigsums=readRDS(file.path(objdir,"dailyPigSums.rds", fsep = .Platform$file.sep))
 # Format Data ----------------
 
 #set column used for region split
-colnames(pigsums)[1]<-"Region"
+colnames(pigsums)[3]<-"Region"
 
 #all covars need to be either numeric or factor
 pigsums[,which(colnames(pigsums)=="season")]<-as.factor(pigsums[,which(colnames(pigsums)=="season")])
