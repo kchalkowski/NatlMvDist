@@ -229,5 +229,3 @@ displ_ks_list=Do.KS.Tests(bootwash,pigs,"disp")
 #write.csv(sl_ks_list$ks.res,file.path(outdir,"ksres.csv"))
 #write.csv(displ_ks_list$ks.res,file.path(outdir,"ksres.csv"))
 
-
-
