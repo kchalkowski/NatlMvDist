@@ -142,13 +142,42 @@ DoAllHisto<-function(pigs,bootwash,response){
 DoAllHisto(pigs,bootwash,"sl")
 DoAllHisto(pigs,bootwash,"disp")
 
-# Do KS tests ---------------------
-#bootwash=readRDS(file.path(outdir,filestr,"UncPredMats","bootwash.rds"))
+# Make QQ plots and Run KS tests ---------------------
 
-#Make function to do it for each response
-#bootwash
-#pigs
-#response="sl"
+## QQ Plot functions ---------
+
+#function to scale datasets
+fun_range <- function(x,tot) {                              
+  (x - min(tot)) / (max(tot) - min(tot))
+}
+
+#function to make combined qqplot 
+combined_qq<-function(meanobs,meanpred,stepobs,steppred,quantiles = seq(0, 1, 0.01),response_season){
+  tots.u=c(meanobs,meanpred)
+  tots.s=c(stepobs,steppred)
+  
+  meanobs.scal=fun_range(meanobs,tots.u)
+  meanpred.scal=fun_range(meanpred,tots.u)
+  stepobs.scal=fun_range(stepobs,tots.s)
+  steppred.scal=fun_range(steppred,tots.s)
+  
+  ggplot() + 
+    geom_abline(aes(slope = 1, intercept = 0), linetype = 2, linewidth=4, color="black")+
+    
+    geom_point(mapping = aes(x = quantile(stepobs.scal, quantiles), 
+                             y = quantile(steppred.scal, quantiles)),color="#db4200",size=6) +
+    geom_point(mapping = aes(x = quantile(meanobs.scal, quantiles), 
+                             y = quantile(meanpred.scal, quantiles)),color="#5318db",size=6) +
+    xlim(0,1)+ylim(0,1)+coord_equal()+theme_linedraw() +
+    xlab(response_season) +
+    ylab("preds") +
+    theme(axis.text.x = element_text(size=50,angle=90,vjust=0.4))+
+    theme(axis.text.y = element_text(size=50))+
+    theme(panel.border = element_rect(colour = "black", fill=NA, size=5))
+  
+}
+
+## Combined KS test/qq plot loop -------------
 Do.KS.Tests<-function(bootwash,pigs,response){
   coln=colnames(pigs)[grep(response,colnames(pigs))]
   pigs2=pigs[!is.na(pigs[,which(colnames(pigs)==coln)]),]
@@ -178,6 +207,12 @@ Do.KS.Tests<-function(bootwash,pigs,response){
     ks.res[i,3]=model.mu$statistic
     ks.res[i,4]=model.step$statistic
     
+    for(q in 1:4){
+      qq=combined_qq(pig.mu.vec[[1]],sim.mu.vec[[1]],pig.step.vec[[1]],sim.step.vec[[1]],quantiles = seq(0, 1, 0.01),"sl_1")
+      ggsave(file.path(outdir,response,"_",q,"_qq.png"),qq,width=7,height=6)
+      
+    }
+    
   }
   
 return(list("pig.mu.vec"=pig.mu.vec,
@@ -191,63 +226,8 @@ return(list("pig.mu.vec"=pig.mu.vec,
 sl_ks_list=Do.KS.Tests(bootwash,pigs,"sl")
 displ_ks_list=Do.KS.Tests(bootwash,pigs,"disp")
 
-#write.csv(ks.res,paste0(outdir,"ksres.csv"))
-#write.csv(ks.res,paste0(outdir,"ksres.csv"))
-
-# Make qq plots ---------------------
-
-#function to scale datasets
-fun_range <- function(x,tot) {                              
-  (x - min(tot)) / (max(tot) - min(tot))
-}
-
-#function to make combined qqplot 
-combined_qq<-function(meanobs,meanpred,stepobs,steppred,quantiles = seq(0, 1, 0.01),response_season){
-tots.u=c(meanobs,meanpred)
-tots.s=c(stepobs,steppred)
-
-meanobs.scal=fun_range(meanobs,tots.u)
-meanpred.scal=fun_range(meanpred,tots.u)
-stepobs.scal=fun_range(stepobs,tots.s)
-steppred.scal=fun_range(steppred,tots.s)
-  
-ggplot() + 
-  geom_abline(aes(slope = 1, intercept = 0), linetype = 2, linewidth=4, color="black")+
-  
-  geom_point(mapping = aes(x = quantile(stepobs.scal, quantiles), 
-                           y = quantile(steppred.scal, quantiles)),color="#db4200",size=6) +
-  geom_point(mapping = aes(x = quantile(meanobs.scal, quantiles), 
-                           y = quantile(meanpred.scal, quantiles)),color="#5318db",size=6) +
-  xlim(0,1)+ylim(0,1)+coord_equal()+theme_linedraw() +
-  xlab(response_season) +
-  ylab("preds") +
-  theme(axis.text.x = element_text(size=50,angle=90,vjust=0.4))+
-  theme(axis.text.y = element_text(size=50))+
-  theme(panel.border = element_rect(colour = "black", fill=NA, size=5))
-
-}
-
-#make combined qq for each season/response
-#combined_qq(meanobs,meanpred,stepobs,steppred,quantiles = seq(0, 1, 0.01))
-sl_1=combined_qq(pigs.u.sl.vec[[1]]$usl,slq.vec[[1]]$u,pig.vec.sl[[1]],df2.vec.sl[[1]],quantiles = seq(0, 1, 0.01),"sl_1")
-sl_2=combined_qq(pigs.u.sl.vec[[2]]$usl,slq.vec[[2]]$u,pig.vec.sl[[2]],df2.vec.sl[[2]],quantiles = seq(0, 1, 0.01),"sl_2")
-sl_3=combined_qq(pigs.u.sl.vec[[3]]$usl,slq.vec[[3]]$u,pig.vec.sl[[3]],df2.vec.sl[[3]],quantiles = seq(0, 1, 0.01),"sl_3")
-sl_4=combined_qq(pigs.u.sl.vec[[4]]$usl,slq.vec[[4]]$u,pig.vec.sl[[4]],df2.vec.sl[[4]],quantiles = seq(0, 1, 0.01),"sl_4")
-
-di_1=combined_qq(pigs.u.di.vec[[1]]$udisp,dispq.vec[[1]]$u,pig.vec.disp[[1]],df2.vec.disp[[1]],quantiles = seq(0, 1, 0.01),"disp_1")
-di_2=combined_qq(pigs.u.di.vec[[2]]$udisp,dispq.vec[[2]]$u,pig.vec.disp[[2]],df2.vec.disp[[2]],quantiles = seq(0, 1, 0.01),"disp_2")
-di_3=combined_qq(pigs.u.di.vec[[3]]$udisp,dispq.vec[[3]]$u,pig.vec.disp[[3]],df2.vec.disp[[3]],quantiles = seq(0, 1, 0.01),"disp_3")
-di_4=combined_qq(pigs.u.di.vec[[4]]$udisp,dispq.vec[[4]]$u,pig.vec.disp[[4]],df2.vec.disp[[4]],quantiles = seq(0, 1, 0.01),"disp_4")
-
-ggsave(paste0(outdir,"sl_1_qq.png"),sl_1,width=7,height=6)
-ggsave(paste0(outdir,"sl_2_qq.png"),sl_2,width=7,height=6)
-ggsave(paste0(outdir,"sl_3_qq.png"),sl_3,width=7,height=6)
-ggsave(paste0(outdir,"sl_4_qq.png"),sl_4,width=7,height=6)
-
-ggsave(paste0(outdir,"di_1_qq.png"),di_1,width=7,height=6)
-ggsave(paste0(outdir,"di_2_qq.png"),di_2,width=7,height=6)
-ggsave(paste0(outdir,"di_3_qq.png"),di_3,width=7,height=6)
-ggsave(paste0(outdir,"di_4_qq.png"),di_4,width=7,height=6)
+#write.csv(sl_ks_list$ks.res,file.path(outdir,"ksres.csv"))
+#write.csv(displ_ks_list$ks.res,file.path(outdir,"ksres.csv"))
 
 
 
