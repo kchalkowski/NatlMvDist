@@ -86,8 +86,10 @@ for(s in 1:length(season)){
   }
 }
 
-
-saveRDS(bootwash,paste0(file.path(outdir,filestr,"UncPredMats"),"bootwash.rds"))
+#use for downstream tests
+bootwash=minibootwash
+##
+saveRDS(bootwash,file.path(outdir,filestr,"UncPredMats","bootwash.rds"))
 
 slq1=bootwash[bootwash$season=="q1"&bootwash$response=="sl",]
 #dispq1=bootwash[bootwash$season=="q1"&bootwash$response=="disp",]
@@ -141,43 +143,56 @@ DoAllHisto(pigs,bootwash,"sl")
 DoAllHisto(pigs,bootwash,"disp")
 
 # Do KS tests ---------------------
+#bootwash=readRDS(file.path(outdir,filestr,"UncPredMats","bootwash.rds"))
 
-#vectors to go through ks stats
-#steps
-df2.vec.sl=list(df2.q1$sl, df2.q2$sl, df2.q3$sl, df2.q4$sl)
-df2.vec.disp=list(df2.q1$disp, df2.q2$disp, df2.q3$disp, df2.q4$disp)
-pig.vec.sl=list(pigs.q1$sl_, pigs.q2$sl_, pigs.q3$sl_, pigs.q4$sl_)
-pig.vec.disp=list(pigs.q1[which(pigs.q1$displacement<1e6),]$displacement, 
-                  pigs.q2[which(pigs.q2$displacement<1e6),]$displacement, 
-                  pigs.q3[which(pigs.q3$displacement<1e6),]$displacement, 
-                  pigs.q4[which(pigs.q4$displacement<1e6),]$displacement)
-
-#means
-pigs.u.sl.vec=list(pigs.q1.u.sl,pigs.q2.u.sl,pigs.q3.u.sl,pigs.q4.u.sl) #obs_u_sl/disp
-pigs.u.di.vec=list(pigs.q1.u.di,pigs.q2.u.di,pigs.q3.u.di,pigs.q4.u.di) #obs_u_sl/disp
-slq.vec=list(slq1,slq2,slq3,slq4) #sim_u_sl
-dispq.vec=list(dispq1,dispq2,dispq3,dispq4) #sim_u_disp
-
-ks.res=data.frame(matrix(nrow=4,ncol=6))
-colnames(ks.res)=c("response","level","q1","q2","q3","q4")
-ks.res[,1]=c("sl","sl","disp","disp")
-ks.res[,2]=c("u","s","u","s")
-
-for(q in 1:4){
-model.u.sl=ks.test(pigs.u.sl.vec[[q]]$usl,slq.vec[[q]]$u) #0.28455
-model.s.sl=ks.test(pig.vec.sl[[q]],df2.vec.sl[[q]]) #0.0796
-
-model.u.di=ks.test(pigs.u.di.vec[[q]]$udisp,dispq.vec[[q]]$u) #0.28455
-model.s.di=ks.test(pig.vec.disp[[q]],df2.vec.disp[[q]]) #0.0796
-
-ks.res[1,(2+q)]=model.u.sl$statistic
-ks.res[2,(2+q)]=model.s.sl$statistic
-ks.res[3,(2+q)]=model.u.di$statistic
-ks.res[4,(2+q)]=model.s.di$statistic
-
+#Make function to do it for each response
+#bootwash
+#pigs
+#response="sl"
+Do.KS.Tests<-function(bootwash,pigs,response){
+  coln=colnames(pigs)[grep(response,colnames(pigs))]
+  pigs2=pigs[!is.na(pigs[,which(colnames(pigs)==coln)]),]
+  
+  sim.step.vec=vector(mode="list",length=4)
+  pig.step.vec=vector(mode="list",length=4)
+  sim.mu.vec=vector(mode="list",length=4)
+  pig.mu.vec=vector(mode="list",length=4)
+  ks.res=data.frame("response"=response,"q"=1:4,"mu_D"=NA,"step_D"=NA)
+  for(q in 1:4){
+    pigsq=pigs2[pigs2$season==as.factor(paste0("q",q)),]
+    df=bootwash[bootwash$season==paste0("q",q)&bootwash$response==response,]
+    df2=data.frame(type="boots",response=unlist(c(df[,6:8])))
+    
+    #Steps!
+    sim.step.vec[[q]]=df2$response
+    pig.step.vec[[q]]=pigsq[,which(colnames(pigs)==coln)]
+    
+    #Means!
+    sim.mu.vec[[q]]=mean(df$u)
+    pig.mu=pigsq %>% dplyr::group_by(animalid) %>% dplyr::summarise(mu=mean(eval(parse(text=coln)))) %>% dplyr::select(mu) %>% as.data.frame()
+    pig.mu.vec[[q]]=pig.mu$mu
+    
+    model.mu=ks.test(pig.mu.vec[[q]],sim.mu.vec[[q]]) #0.28455
+    model.step=ks.test(pig.step.vec[[q]],sim.step.vec[[q]]) #0.0796
+    
+    ks.res[i,3]=model.mu$statistic
+    ks.res[i,4]=model.step$statistic
+    
+  }
+  
+return(list("pig.mu.vec"=pig.mu.vec,
+            "sim.mu.vec"=sim.mu.vec,
+            "pig.step.vec"=pig.step.vec,
+            "sim.step.vec"=sim.step.vec,
+            "ks.res"=ks.res))
+  
 }
 
-write.csv(ks.res,paste0(outdir,"ksres.csv"))
+sl_ks_list=Do.KS.Tests(bootwash,pigs,"sl")
+displ_ks_list=Do.KS.Tests(bootwash,pigs,"disp")
+
+#write.csv(ks.res,paste0(outdir,"ksres.csv"))
+#write.csv(ks.res,paste0(outdir,"ksres.csv"))
 
 # Make qq plots ---------------------
 
