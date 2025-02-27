@@ -30,7 +30,7 @@ outer.r2.kfold=data.frame(matrix(nrow=ko_t,ncol=1))
 colnames(outer.opt.params.kfold)=c("ko", "n.trees", "learning.rate", "tree.complexity", "bag.fraction", "rmse.inner", "rmse.outer")
 
 #get outer k fold split data set
-if(split_type=="random"){
+if(split_type=="Random"){
 outer_k_fold=k_split(pigsums,ko_t)
 } else{
 outer_k_fold=k_split_group(pigsums,split_type)

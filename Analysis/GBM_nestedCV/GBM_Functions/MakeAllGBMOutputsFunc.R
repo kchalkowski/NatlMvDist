@@ -32,8 +32,8 @@ MakeAllGBMOutputs<-function(path,split_type,pigsums,response,response_str,distri
   if(!dir.exists(file.path(path,"GBM_Null"))){dir.create(file.path(path,"GBM_Null"))}
   
 #for testing
-ko_t=10 #outer k-fold cross validations
-ki_t=3 #inner k-fold cross validations
+ko_t=2 #outer k-fold cross validations
+ki_t=2 #inner k-fold cross validations
 
 #X vec is a vector of indices with parameters included in the model
 X_vec.start=c(
@@ -45,8 +45,8 @@ X_vec.start=c(
         )
 
 #Run models
-#res=Run.GBM.Model(pigsums,response,X_vec.start,ko_t,ki_t,distribution,split_type,ntreemax=8000)
-res=Run.GBM.Model(pigsums[1:1000,],response,X_vec.start[1:5],2,2,distribution,split_type,ntreemax=8000)
+res=Run.GBM.Model(pigsums,response,X_vec.start,ko_t,ki_t,distribution,split_type,ntreemax=8000)
+#res=Run.GBM.Model(pigsums[1:1000,],response,X_vec.start[1:5],2,2,distribution,split_type,ntreemax=8000)
 
 #Export CV stats from first run
 #set file.str and make directory for saving
