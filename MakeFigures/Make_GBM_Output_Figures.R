@@ -33,10 +33,11 @@ library(gridGraphics)
 home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
 outdir=file.path(home,"4_Outputs")
 funcdir<-file.path(home,"1_Scripts","MakeFigures","Functions")
-filestr<-"TestRuns"
+filestr<-"3Mar25_Runs"
 objdir<-file.path(home,"2_Data","Objects")
-
+if(!dir.exists(file.path(outdir,filestr,"FigTab"))){dir.create(file.path(outdir,filestr,"FigTab"))}
 #read in pigsums dataset
+
 pigsums<-readRDS(file.path(home,"2_Data","Objects","dailyPigSums.rds"))
 pigswsite<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 pigs<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
@@ -87,12 +88,12 @@ source(file.path(home,"1_Scripts","Analysis","GBM_nestedCV","GBM_Functions","K_S
 #col for each 2 metrics (RMSE and R2) and 4 models (full, drop01, lassodrop, null)
 
 #initiate tables, region and random cv methods
-model.sel.tbl=as.data.frame(matrix(nrow=4,ncol=8))
+model.sel.tbl=as.data.frame(matrix(nrow=4,ncol=6))
 rownames(model.sel.tbl)=c("step length", "step length sigma", "displacement", "disp. sigma")
-colnames(model.sel.tbl)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
-model.sel.tbl.region=as.data.frame(matrix(nrow=4,ncol=8))
+colnames(model.sel.tbl)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "null RMSE", "null R2")
+model.sel.tbl.region=as.data.frame(matrix(nrow=4,ncol=6))
 rownames(model.sel.tbl.region)=c("step length", "step length sigma", "displacement", "disp. sigma")
-colnames(model.sel.tbl.region)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "lasso RMSE", "lasso r2", "null RMSE", "null R2")
+colnames(model.sel.tbl.region)=c("full RMSE", "full r2", "drop 01 RMSE", "drop 01 r2", "null RMSE", "null R2")
 
 #Full model: get values from file
 full.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","sl_meanRMSE.csv"))
@@ -133,26 +134,6 @@ drop01.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop",
 drop01.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","disp_meanR2.csv"))
 drop01.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.disp_meanRMSE.csv"))
 drop01.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_01Drop","sigma.disp_meanR2.csv"))
-
-#lasso model: get vals
-lasso.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sl_meanRMSE.csv"))
-lasso.R2.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sl_meanR2.csv"))
-lasso.RMSE.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.sl_meanRMSE.csv"))
-lasso.R2.sigma.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.sl_meanR2.csv"))
-lasso.RMSE.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","disp_meanRMSE.csv"))
-lasso.R2.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","disp_meanR2.csv"))
-lasso.RMSE.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.disp_meanRMSE.csv"))
-lasso.R2.sigma.disp=read.csv(file.path(outdir,filestr,"Random","GBM_Lasso","sigma.disp_meanR2.csv"))
-
-#lasso model region kfold: get vals
-lasso.RMSE.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sl_meanRMSE.csv"))
-lasso.R2.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sl_meanR2.csv"))
-lasso.RMSE.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.sl_meanRMSE.csv"))
-lasso.R2.sigma.sl.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.sl_meanR2.csv"))
-lasso.RMSE.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","disp_meanRMSE.csv"))
-lasso.R2.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","disp_meanR2.csv"))
-lasso.RMSE.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.disp_meanRMSE.csv"))
-lasso.R2.sigma.disp.region=read.csv(file.path(outdir,filestr,"Region","GBM_Lasso","sigma.disp_meanR2.csv"))
 
 #null model: get vals
 null.RMSE.sl=read.csv(file.path(outdir,filestr,"Random","GBM_Null","sl_meanRMSE.csv"))
@@ -202,33 +183,19 @@ model.sel.tbl[3,4]=round(full.R2.disp[1,2],3)
 model.sel.tbl[4,3]=round(drop01.RMSE.sigma.disp[1,2],3)
 model.sel.tbl[4,4]=round(drop01.R2.sigma.disp[1,2],3)
 
-#col 5,6: lasso drop
-#row 1: sl
-model.sel.tbl[1,5]=round(lasso.RMSE.sl[1,2],3)
-model.sel.tbl[1,6]=round(lasso.R2.sl[1,2],3)
-#row 2: sigma sl
-model.sel.tbl[2,5]=round(lasso.RMSE.sigma.sl[1,2],3)
-model.sel.tbl[2,6]=round(lasso.R2.sigma.sl[1,2],3)
-#row 3: disp
-model.sel.tbl[3,5]=round(lasso.RMSE.disp[1,2],3)
-model.sel.tbl[3,6]=round(lasso.R2.disp[1,2],3)
-#row 4: sigma disp
-model.sel.tbl[4,5]=round(lasso.RMSE.sigma.disp[1,2],3)
-model.sel.tbl[4,6]=round(lasso.R2.sigma.disp[1,2],3)
-
 #col 7,8: null model rmse, r2
 #row 1: sl
-model.sel.tbl[1,7]=round(null.RMSE.sl[1,2],3)
-model.sel.tbl[1,8]=round(null.R2.sl[1,2],3)
+model.sel.tbl[1,5]=round(null.RMSE.sl[1,2],3)
+model.sel.tbl[1,6]=round(null.R2.sl[1,2],3)
 #row 2: sigma sl
-model.sel.tbl[2,7]=round(null.RMSE.sigma.sl[1,2],3)
-model.sel.tbl[2,8]=round(null.R2.sigma.sl[1,2],3)
+model.sel.tbl[2,5]=round(null.RMSE.sigma.sl[1,2],3)
+model.sel.tbl[2,6]=round(null.R2.sigma.sl[1,2],3)
 #row 3: disp
-model.sel.tbl[3,7]=round(null.RMSE.disp[1,2],3)
-model.sel.tbl[3,8]=round(null.R2.disp[1,2],3)
+model.sel.tbl[3,5]=round(null.RMSE.disp[1,2],3)
+model.sel.tbl[3,6]=round(null.R2.disp[1,2],3)
 #row 4: sigma disp
-model.sel.tbl[4,7]=round(null.RMSE.sigma.disp[1,2],3)
-model.sel.tbl[4,8]=round(null.R2.sigma.disp[1,2],3)
+model.sel.tbl[4,5]=round(null.RMSE.sigma.disp[1,2],3)
+model.sel.tbl[4,6]=round(null.R2.sigma.disp[1,2],3)
 
 #col 1,2: region full model rmse, r2
 #row 1: sl
@@ -258,43 +225,29 @@ model.sel.tbl.region[3,4]=round(drop01.R2.disp.region[1,2],3)
 model.sel.tbl.region[4,3]=round(drop01.RMSE.sigma.disp.region[1,2],3)
 model.sel.tbl.region[4,4]=round(drop01.R2.sigma.disp.region[1,2],3)
 
-#col 5,6: region lasso model rmse, r2
-#row 1: sl
-model.sel.tbl.region[1,5]=round(lasso.RMSE.sl.region[1,2],3)
-model.sel.tbl.region[1,6]=round(lasso.R2.sl.region[1,2],3)
-#row 2: sigma sl
-model.sel.tbl.region[2,5]=round(lasso.RMSE.sigma.sl.region[1,2],3)
-model.sel.tbl.region[2,6]=round(lasso.R2.sigma.sl.region[1,2],3)
-#row 3: disp
-model.sel.tbl.region[3,5]=round(lasso.RMSE.disp.region[1,2],3)
-model.sel.tbl.region[3,6]=round(lasso.R2.disp.region[1,2],3)
-#row 4: sigma disp
-model.sel.tbl.region[4,5]=round(lasso.RMSE.sigma.disp.region[1,2],3)
-model.sel.tbl.region[4,6]=round(lasso.R2.sigma.disp.region[1,2],3)
-
 #col 7,8: region null model rmse, r2
 #row 1: sl
-model.sel.tbl.region[1,7]=round(null.RMSE.sl.region[1,2],3)
-model.sel.tbl.region[1,8]=round(null.R2.sl.region[1,2],3)
+model.sel.tbl.region[1,5]=round(null.RMSE.sl.region[1,2],3)
+model.sel.tbl.region[1,6]=round(null.R2.sl.region[1,2],3)
 #row 2: sigma sl
-model.sel.tbl.region[2,7]=round(null.RMSE.sigma.sl.region[1,2],3)
-model.sel.tbl.region[2,8]=round(null.R2.sigma.sl.region[1,2],3)
+model.sel.tbl.region[2,5]=round(null.RMSE.sigma.sl.region[1,2],3)
+model.sel.tbl.region[2,6]=round(null.R2.sigma.sl.region[1,2],3)
 #row 3: disp
-model.sel.tbl.region[3,7]=round(null.RMSE.disp.region[1,2],3)
-model.sel.tbl.region[3,8]=round(null.R2.disp.region[1,2],3)
+model.sel.tbl.region[3,5]=round(null.RMSE.disp.region[1,2],3)
+model.sel.tbl.region[3,6]=round(null.R2.disp.region[1,2],3)
 #row 4: sigma disp
-model.sel.tbl.region[4,7]=round(null.RMSE.sigma.disp.region[1,2],3)
-model.sel.tbl.region[4,8]=round(null.R2.sigma.disp.region[1,2],3)
+model.sel.tbl.region[4,5]=round(null.RMSE.sigma.disp.region[1,2],3)
+model.sel.tbl.region[4,6]=round(null.R2.sigma.disp.region[1,2],3)
 
-model.sel.tbl.total=as.data.frame(matrix(nrow=4,ncol=16))
+model.sel.tbl.total=as.data.frame(matrix(nrow=4,ncol=12))
 rownames(model.sel.tbl.total)=c("step length", "step length sigma", "displacement", "disp. sigma")
-colnames(model.sel.tbl.total)=c("full RMSE random", "full r2 random", "drop 01 RMSE random", "drop 01 r2 random", "lasso RMSE random", "lasso r2 random", "null RMSE random", "null R2 random",
-                          "full RMSE region", "full r2 region", "drop 01 RMSE region", "drop 01 r2 region", "lasso RMSE region", "lasso r2 region", "null RMSE region", "null R2region")
+colnames(model.sel.tbl.total)=c("full RMSE random", "full r2 random", "drop 01 RMSE random", "drop 01 r2 random", "null RMSE random", "null R2 random","full RMSE region", "full r2 region", "drop 01 RMSE region", "drop 01 r2 region", "null RMSE region", "null R2region")
 
-model.sel.tbl.total[1:4,1:8]=model.sel.tbl
-model.sel.tbl.total[1:4,9:16]=model.sel.tbl.region
+model.sel.tbl.total[1:4,1:6]=model.sel.tbl
+model.sel.tbl.total[1:4,7:12]=model.sel.tbl.region
 
 model.sel.tbl.total=model.sel.tbl.total[,-c(2,4,6,8,10,12,14,16)]
+
 
 write.csv(model.sel.tbl.total,file.path(outdir,filestr,"FigTab","ModelSelTblTotal.csv"))
 
@@ -358,13 +311,13 @@ getXvec<-function(model.sel.tbl.total,out.opt){
 
 X_sel=getXvec(model.sel.tbl.total,"X_sel")
 
-sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"sl_bestmodelparams.csv"))
+#hard coding for 01 drop for now
+sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"GBM_01Drop","sl_bestmodelparams.csv"))
 sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[2,3],"sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"disp_bestmodelparams.csv"))
+disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"GBM_01Drop","disp_bestmodelparams.csv"))
 sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
 
 ## determine X vec for each response --------
-
 X_vec_list=getXvec(model.sel.tbl.total,"Xlist")
 
 ## Run GBMs --------
@@ -455,7 +408,7 @@ Rename_LC=function(df,col,lc_df){
 join5=Rename_LC(join5,1,lc_df)
 
 #Make heat map with proportional rel infl.
-ggplot(join5, aes(name, var, fill= value)) + 
+hm_ri=ggplot(join5, aes(name, var, fill= value)) + 
   geom_tile() +
   scale_fill_viridis(discrete=FALSE) +
   theme_minimal()+
@@ -465,6 +418,9 @@ ggplot(join5, aes(name, var, fill= value)) +
         legend.title = element_text("Arial", "bold", size=12),
         axis.text=element_text(size=12),
         legend.text=element_text(size=12))
+
+#save heatmap
+ggsave(file.path(outdir,filestr,"FigTab","heatmap.png"),plot=hm_ri,height=9,width=6.5,units="in")
 
 #remove variables with 0 influence from tables (full models)
 RemoveZeroInfluence=function(relinftbl){
@@ -525,10 +481,8 @@ relinf.pg=plot_grid(
   label_size=50
 )
 
-png(file=file.path(home,"Outputs/YFigureOutputs/26APR23_FigureSet/rel_infl_charts/relinfplots_08MAY_sl.png",sep="/"),
-    width=2550, height=2550)
-relinf.pg
-dev.off()
+ggsave(file.path(outdir,filestr,"FigTab","relinf_pg.png"),plot=relinf.pg,height=9,width=6.5,units="in")
+
 
 # Partial dependence plots -----------------
 
@@ -777,36 +731,38 @@ dev.off()
 
 # Violin plots -----------------------------
 
-p1=ggplot(pigsums3, aes(x=fct_inorder(region), y=sl_)) + 
+p1=ggplot(pigsums_sl, aes(x=fct_inorder(region), y=sl_mean)) + 
   geom_violin() + 
   coord_flip() + 
   geom_jitter(height=0,width=0.2,alpha=0.5) + theme(text = element_text(size = 40))+
   labs(x="study", y="average daily step length (m)")
 
-p2=ggplot(pigsums3, aes(x=fct_inorder(region), y=sigma_sl)) + 
+p2=ggplot(pigsums_sigmasl, aes(x=fct_inorder(region), y=sl_disp)) + 
   geom_violin() + 
   coord_flip() + 
   geom_jitter(height=0,width=0.2,alpha=0.5) + theme(text = element_text(size = 40))+
   labs(x="study", y="average daily step length dispersion")
 
-p3=ggplot(pigsums3, aes(x=fct_inorder(region), y=displacement)) + 
+p3=ggplot(pigsums_displ, aes(x=fct_inorder(region), y=displ_mean)) + 
   geom_violin() + 
   coord_flip() + 
   geom_jitter(height=0,width=0.2,alpha=0.5) + theme(text = element_text(size = 40))+
   labs(x="study", y="average daily displacement (m)")
 
-p4=ggplot(pigsums3, aes(x=fct_inorder(region), y=sigma_disp)) + 
+p4=ggplot(pigsums_sigmadisp, aes(x=fct_inorder(region), y=displ_disp)) + 
   geom_violin() + 
   coord_flip() + 
   geom_jitter(height=0,width=0.2,alpha=0.5) + theme(text = element_text(size = 40))+
   labs(x="study", y="average daily displacement dispersion")
 
 path=file.path(outdir,filestr,"FigTab","violin_plots")
+if(!dir.exists(path)){dir.create(path)}
 
 png(file=file.path(path,"violin_grid.png"),
     width=1000, height=1000)
 ggarrange(p1,p2,p3,p4,nrow=2,ncol=2,labels="auto",font.label=list(size=50,face="bold"),hjust=-0.2, vjust=1)
 dev.off()
+
 
 
 #Write any final output needed as objects ---------

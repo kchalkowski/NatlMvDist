@@ -26,8 +26,8 @@ library(foreach)
 ## set working directories -------
 #local:
 home<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
-filestr<-"TestRuns"
-outdir<-file.path(home,"4_Outputs",filestr)
+filestr<-"3MAR25_Runs"
+outdir<-file.path(home,"4_Outputs")
 objdir<-file.path(home,"2_Data","Objects")
 
 ## read data -------
@@ -44,9 +44,9 @@ X_sel=readRDS(file.path(objdir,"X_sel.rds"))
 X_vec_list=readRDS(file.path(objdir,"X_vec_list.rds"))
 
 #read in optimal hyperparameter sets
-sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"sl_bestmodelparams.csv"))
+sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"GBM_01Drop","sl_bestmodelparams.csv"))
 sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[2,3],"sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"disp_bestmodelparams.csv"))
+disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"GBM_01Drop","disp_bestmodelparams.csv"))
 sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
 
 #get helper shapefiles
@@ -56,7 +56,7 @@ usplot <- st_read(dsn = file.path(objdir,"usmapplot_best.shp"), layer = "usmappl
 
 #format pigsums data
 #set column used for region split
-colnames(pigsums)[1]<-"Region"
+colnames(pigsums)[3]<-"Region"
 
 #all covars need to be either numeric or factor
 pigsums[,which(colnames(pigsums)=="season")]<-as.factor(pigsums[,which(colnames(pigsums)=="season")])
@@ -124,6 +124,8 @@ AvgWashPreds<-function(gbm.mod,wash,opt.params,response){
   q_list=list(q1_vars,q2_vars,q3_vars,q4_vars)
   predmat=matrix(nrow=nrow(wash),ncol=4)
   for(q in 1:4){
+    print(paste0("quartr ",q))
+
   #colnames(predmat)[q]<-paste(response,q,sep="_")
   wash_notemporal=wash[,-q_list[[q]]]
   washq=cbind(wash_notemporal,wash[,q_list[[q]]])
@@ -143,6 +145,7 @@ AvgWashPreds<-function(gbm.mod,wash,opt.params,response){
   #Loop through periods
   predmat_p=matrix(nrow=nrow(wash),ncol=4)
   for(p in 1:4){
+    print(paste0("period ",p))
   washq$period=as.factor(paste0("p",p))
     
   washqf=washq
@@ -198,39 +201,92 @@ saveRDS(washp,file.path(objdir,"wash_preds.rds"))
 #this can take a while
 washp2=st_intersection(washp,usplot)  
 
-WashMap<-function(colname,string){
+#test version,crop to AL
+test=washp2[washp2$State_Name=="ALABAMA",]
+string="test"
+colname="sl_q1"
+response="sl"
+map=test
+WashMap<-function(map,response,colname,incleg){
   #parse(text=colname)
+  rci=grep(paste0("^",response,"_q"),colnames(map))
+  rcv=c(as.matrix(st_drop_geometry(map[,rci])))
+  maxp=max(rcv)
+  minp=min(rcv)
+  if(incleg){
   washmap=ggplot() + 
     geom_sf(data=usplot, fill="black")+
-    geom_sf(data = washp2, aes(fill = eval(parse(text=colname))),lwd=0)+scale_fill_viridis_c(name=string)+
+    geom_sf(data = map, aes(fill = eval(parse(text=colname))),lwd=0)+
+    scale_fill_viridis_c(name=string,limits=c(minp,maxp))+
     geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
-    theme_map()
+    theme_map()+
+    theme(plot.margin = unit(c(0.1,0.1,0.1,0.1), "in"))+
+    theme(legend.position="bottom",
+          legend.text = element_text(angle = 90))
+  } else{
+    washmap=ggplot() + 
+      geom_sf(data=usplot, fill="black")+
+      geom_sf(data = map, aes(fill = eval(parse(text=colname))),lwd=0)+
+      scale_fill_viridis_c(name="",limits=c(minp,maxp))+
+      geom_sf(data=usplot, fill=NA, color="#EBEBEB")+
+      theme_map()+
+      theme(plot.margin = unit(c(0.1,0.1,0.1,0.1), "in"))+
+      theme(legend.position="none")
+  }
+  #washmap    
+    
+
   return(washmap)
 }
 
 ## SL -------------------------------------
-washq1.sl=WashMap("sl_q1","Mean step length (m) Jan-Mar")
-washq2.sl=WashMap("sl_q2","Mean step length (m) Apr-Jun")
-washq3.sl=WashMap("sl_q3","Mean step length (m) Jul-Sep")
-washq4.sl=WashMap("sl_q4","Mean step length (m) Oct-Dec")
+#map,response,colname,incleg
+washq1.sl=WashMap(washp2,"^sl","sl_q1",FALSE)
+washq2.sl=WashMap(washp2,"^sl","sl_q2",FALSE)
+washq3.sl=WashMap(washp2,"^sl","sl_q3",FALSE)
+washq4.sl=WashMap(washp2,"^sl","sl_q4",FALSE)
+washleg=WashMap(washp2,"^sl","sl_q1",TRUE)
+
+sl_pg=plot_grid(washq1.sl, washq2.sl, washq3.sl, washq4.sl, nrow = 2, labels=c("a","b","c","d"))
+ggsave(file.path(outdir,filestr,"FigTab","Maps","sl_pmap.png"),plot=sl_pg,height=6.5,width=9,units="in")
+ggsave(file.path(outdir,filestr,"FigTab","Maps","sl_legend.png"),plot=washleg,height=6.5,width=9,units="in")
 
 ## Sigma SL -------------------------------------
-washq1.sigma.sl=WashMap("sigmasl_q1","Mean step length dispersion Jan-Mar")
-washq1.sigma.sl=WashMap("sigmasl_q2","Mean step length dispersion Apr-Jun")
-washq1.sigma.sl=WashMap("sigmasl_q3","Mean step length dispersion Jul-Sep")
-washq1.sigma.sl=WashMap("sigmasl_q4","Mean step length dispersion Oct-Dec")
+#map,response,colname,incleg
+washq1.sigma.sl=WashMap(washp2,"^sigmasl","sigmasl_q1",FALSE)
+washq2.sigma.sl=WashMap(washp2,"^sigmasl","sigmasl_q2",FALSE)
+washq3.sigma.sl=WashMap(washp2,"^sigmasl","sigmasl_q3",FALSE)
+washq4.sigma.sl=WashMap(washp2,"^sigmasl","sigmasl_q4",FALSE)
+washlegsigma.sl=WashMap(washp2,"^sigmasl","sigmasl_q1",TRUE)
+
+sigmasl_pg=plot_grid(washq1.sigma.sl, washq2.sigma.sl, washq3.sigma.sl, washq4.sigma.sl, nrow = 2, labels=c("a","b","c","d"))
+ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.sl_pmap.png"),plot=sigmasl_pg,height=6.5,width=9,units="in")
+ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.sl_legend.png"),plot=washlegsigma.sl,height=6.5,width=9,units="in")
+
 
 ## Disp -------------------------------------
-washq1.disp=WashMap("disp_q1","Mean displacement (m) Jan-Mar")
-washq1.disp=WashMap("disp_q2","Mean displacement (m) Apr-Jun")
-washq1.disp=WashMap("disp_q3","Mean displacement (m) Jul-Sep")
-washq1.disp=WashMap("disp_q4","Mean displacement (m) Oct-Dec")
+#map,response,colname,incleg
+washq1.disp=WashMap(washp2,"^disp","disp_q1",FALSE)
+washq2.disp=WashMap(washp2,"^disp","disp_q2",FALSE)
+washq3.disp=WashMap(washp2,"^disp","disp_q3",FALSE)
+washq4.disp=WashMap(washp2,"^disp","disp_q4",FALSE)
+washleg.disp=WashMap(washp2,"^disp","disp_q1",TRUE)
+
+disp_pg=plot_grid(washq1.disp, washq2.disp, washq3.disp, washq4.disp, nrow = 2, labels=c("a","b","c","d"))
+ggsave(file.path(outdir,filestr,"FigTab","Maps","disp_pmap.png"),plot=disp_pg,height=6.5,width=9,units="in")
+ggsave(file.path(outdir,filestr,"FigTab","Maps","disp_legend.png"),plot=washleg.disp,height=6.5,width=9,units="in")
 
 ## Sigma Disp -------------------------------------
-washq1.sigma.disp=WashMap("sigmadisp_q1","Mean displacement dispersion Jan-Mar")
-washq1.sigma.disp=WashMap("sigmadisp_q2","Mean displacement dispersion Apr-Jun")
-washq1.sigma.disp=WashMap("sigmadisp_q3","Mean displacement dispersion Jul-Sep")
-washq1.sigma.disp=WashMap('sigmadisp_q4',"Mean displacement dispersion Oct-Dec")
+#map,response,colname,incleg
+washq1.sigma.disp=WashMap(washp2,"^sigmadisp","sigmadisp_q1",FALSE)
+washq2.sigma.disp=WashMap(washp2,"^sigmadisp","sigmadisp_q2",FALSE)
+washq3.sigma.disp=WashMap(washp2,"^sigmadisp","sigmadisp_q3",FALSE)
+washq4.sigma.disp=WashMap(washp2,"^sigmadisp","sigmadisp_q4",FALSE)
+washleg.sigma.disp=WashMap(washp2,"^sigmadisp","sigmadisp_q1",TRUE)
+
+sigma.disp_pg=plot_grid(washq1.sigma.disp, washq2.sigma.disp, washq3.sigma.disp, washq4.sigma.disp, nrow = 2, labels=c("a","b","c","d"))
+ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.disp_pmap.png"),plot=sigma.disp_pg,height=6.5,width=9,units="in")
+ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.disp_legend.png"),plot=washleg.sigma.disp,height=6.5,width=9,units="in")
 
 ## Make map grids -------------------
 
@@ -238,11 +294,4 @@ sl_pg=plot_grid(washq1.sl, washq2.sl, washq3.sl, washq4.sl, nrow = 2)
 sigmasl_pg=plot_grid(washq1.sigma.sl, washq2.sigma.sl, washq3.sigma.sl, washq4.sigma.sl, nrow = 2)
 disp_pg=plot_grid(washq1.disp, washq2.disp, washq3.disp, washq4.disp, nrow = 2)
 sigmadisp_pg=plot_grid(washq1.sigma.disp, washq2.sigma.disp, washq3.sigma.disp, washq4.sigma.disp, nrow = 2)
-
-## Save map grids -------------------
-if(!dir.exists(file.path(outdir,filestr,"FigTab","Maps"))){dir.create(file.path(outdir,filestr,"FigTab","Maps"))}
-ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=sl_pg,height=6.5,width=9,units="in")
-ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=sigmasl_pg,height=6.5,width=9,units="in")
-ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=disp_pg,height=6.5,width=9,units="in")
-ggsave(file.path(outdir,filestr,"FigTab","Maps","map.png"),plot=sigmadisp_pg,height=6.5,width=9,units="in")
 
