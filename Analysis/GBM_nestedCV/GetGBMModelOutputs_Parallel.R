@@ -42,7 +42,7 @@ pigsums=readRDS(file.path(objdir,"dailyPigSums.rds", fsep = .Platform$file.sep))
 # Format Data ----------------
 
 #set column used for region split
-colnames(pigsums)[1]<-"Region"
+colnames(pigsums)[3]<-"Region"
 
 #all covars need to be either numeric or factor
 pigsums[,which(colnames(pigsums)=="season")]<-as.factor(pigsums[,which(colnames(pigsums)=="season")])
@@ -73,7 +73,8 @@ source(file.path(gbm_funcdir,"GBM_FunctionSourcer.R", fsep = .Platform$file.sep)
 
 # Hyperparameter optimization and Variable selection ---------
 split_types=c("Region","Random")
-responses=colnames(pigsums)[59:62]
+#FIX: adjust responses colnumbers
+responses=colnames(pigsums)[67:70]
 response_strings=c("sl","sigma.sl","disp","sigma.disp")
 distributions=c("poisson","gaussian","poisson","gaussian")
 pigsums_list=list(pigsums_sl,pigsums_sigmasl,pigsums_displ,pigsums_sigmadisp)
@@ -103,7 +104,9 @@ for(s in 1:2){
     pigsums_sigmadisp=readRDS(file.path(objdir,"pigsums_sigmadisp.rds"))
     
     split_types=c("Region","Random")
-    responses=colnames(pigsums)[59:62]
+    responses=colnames(pigsums)[67:70]
+    #FIX: adjust responses colnumbers
+    #FIX: make sure X_vec_start is correct in MakeAllGBMOuput function.
     response_strings=c("sl","sigma.sl","disp","sigma.disp")
     distributions=c("poisson","gaussian","poisson","gaussian")
     pigsums_list=list(pigsums_sl,pigsums_sigmasl,pigsums_displ,pigsums_sigmadisp)

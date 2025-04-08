@@ -36,15 +36,12 @@ outdir<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/
 
 #read data
 dsteps=readRDS(paste0(outdir,"allsteps_daily.rds"))
-wsteps=readRDS(paste0(outdir,"allsteps_weekly.rds"))
 
 #get vector of unique pig ids
 dpigidvec=unique(dsteps$animalid)
-wpigidvec=unique(wsteps$animalid)
 
 #make id col for pig id, period, season
 dsteps$animalid_per_season=paste(dsteps$animalid,dsteps$period,dsteps$season,sep="_")
-wsteps$animalid_per_season=paste(wsteps$animalid,wsteps$period,wsteps$season,sep="_")
 
 ##################
 ##Make functions##
@@ -132,36 +129,33 @@ keep_cols=c(
   which(colnames(dsteps)=="season"),
   which(colnames(dsteps)=="period")
 )
-env_cols=c(18:26,38:52) #tc:tmin,lc98:lc
+env_cols=c(18:30,42:56) #tc:tmin,lc98:lc
 step_cols=c(which(colnames(dsteps)=="sl_"),
             which(colnames(dsteps)=="displ"))
+
+#recode drought as numeric, make 'None' -1
+dsteps$drt[dsteps$drt=="None"]<-(-1)
+dsteps$drt[dsteps$drt=="D0"]<-0
+dsteps$drt[dsteps$drt=="D1"]<-1
+dsteps$drt[dsteps$drt=="D2"]<-2
+dsteps$drt[dsteps$drt=="D3"]<-3
+dsteps$drt<-as.integer(dsteps$drt)
 
 dstep.sums=MakePigSums(dsteps,idcol,keep_cols,env_cols,step_cols)
 
 #Note:
 #NAs are generated for sl or displ when there are fewer than 6 steps for a given animal/period/season
 
+#lots of NAs in var cols correspond to zero variance
+dstep.sums[,grep("var_",colnames(dstep.sums))][is.na(dstep.sums[,grep("var_",colnames(dstep.sums))])]<-0
+
+#cols that shouldn't have NAs, verify that there are no NAs
+#all columns except age and sex (some indiv didn't have this info)
+test=dstep.sums[,c(1:3,6:64)]
+test[!complete.cases(test),]
+
 #save out
 saveRDS(as.data.frame(dstep.sums),paste0(outdir,"dailyPigSums.rds"))
-
-#weekly summaries per pig
-colnames(wsteps)[which(colnames(wsteps)=="wsl")]<-"sl_"
-id_col="animalid_per_season"
-keep_cols=c(2,3,4,5,6,9)
-env_cols=c(13:118)
-step_cols=c(120,123)
-
-wstep.sums=MakePigSums(wsteps,idcol,keep_cols,env_cols,step_cols)
-
-#rearrange cols to tidy formatting
-#colnames(wstep.sums)
-wstep.sums=
-  wstep.sums[,c(3,1,2,7,6,8,4,5,115,116,117,118,8:113),]
-
-
-#save out
-saveRDS(as.data.frame(wstep.sums),paste0(outdir,"weeklyPigSums.rds"))
-
 
 
 

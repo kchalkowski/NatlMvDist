@@ -1,4 +1,7 @@
 
+#prediction pipeline:
+#Make_GBM_Output_Figures > DoNatlPredictions > MakeUncertaintyMatrices > Generate_Sim_Histos
+
 # Purpose --------------------------------
 
 # This script does predictions from top models for sl/disp responses for all watershed/seasons
@@ -9,7 +12,6 @@
 # Setup --------------------------------
 
 #load libraries
-library(job)
 library(tictoc)
 library(sf)
 library(terra)
@@ -25,10 +27,11 @@ library(foreach)
 
 ## set working directories -------
 #local:
-home<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
-filestr<-"3MAR25_Runs"
+home<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/2_Projects/StatPigMvmt/Pipeline_R2"
+filestr<-"04APR25_Runs"
 outdir<-file.path(home,"4_Outputs")
 objdir<-file.path(home,"2_Data","Objects")
+indir<-file.path(home,"2_Data","Input","Env_Cov")
 
 ## read data -------
 
@@ -37,7 +40,7 @@ pigsums<-readRDS(file.path(objdir,"dailyPigSums.rds"))
 pigswsite<-readRDS(file.path(objdir,"geolocsnatl_wDispl.rds"))
 
 #Read in formatted wastershed shapefile
-wash<-readRDS(file.path(objdir,"wash_envcov_final.rds"))
+wash<-readRDS(file.path(indir,"wash3.rds"))
 
 #Read in X sel table/X vec list
 X_sel=readRDS(file.path(objdir,"X_sel.rds"))
@@ -53,10 +56,11 @@ sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.
 usplot <- st_read(dsn = file.path(objdir,"usmapplot_best.shp"), layer = "usmapplot_best")
 
 ## format data -------
+colnames(pigsums)
 
 #format pigsums data
 #set column used for region split
-colnames(pigsums)[3]<-"Region"
+colnames(pigsums)[3]<-"region"
 
 #all covars need to be either numeric or factor
 pigsums[,which(colnames(pigsums)=="season")]<-as.factor(pigsums[,which(colnames(pigsums)=="season")])
@@ -94,13 +98,13 @@ gbm.disp=gbm.fixed(data=pigsums_displ, gbm.x=X_vec_list$Xdisp, gbm.y=which(colna
                    n.trees=disp.opt.params.kfold$n.trees,
                    bag.fraction=disp.opt.params.kfold$bag.fraction,
                    family="poisson") 
-gbm.sigma.sl=gbm.fixed(data=pigsums_sigmasl, gbm.x=X_vec_list$sigmasl, gbm.y=which(colnames(pigsums)=="sl_disp"),
+gbm.sigma.sl=gbm.fixed(data=pigsums_sigmasl, gbm.x=X_vec_list$sigma.sl, gbm.y=which(colnames(pigsums)=="sl_disp"),
                        learning.rate=sigma.sl.opt.params.kfold$learning.rate, 
                        tree.complexity=sigma.sl.opt.params.kfold$tree.complexity, 
                        n.trees=sigma.sl.opt.params.kfold$n.trees,
                        bag.fraction=sigma.sl.opt.params.kfold$bag.fraction,
                        family="gaussian") 
-gbm.sigma.disp=gbm.fixed(data=pigsums_sigmadisp, gbm.x=X_vec_list$sigmadisp, gbm.y=which(colnames(pigsums)=="displ_disp"),
+gbm.sigma.disp=gbm.fixed(data=pigsums_sigmadisp, gbm.x=X_vec_list$sigma.disp, gbm.y=which(colnames(pigsums)=="displ_disp"),
                          learning.rate=sigma.disp.opt.params.kfold$learning.rate, 
                          tree.complexity=sigma.disp.opt.params.kfold$tree.complexity, 
                          n.trees=sigma.disp.opt.params.kfold$n.trees,
@@ -197,16 +201,13 @@ saveRDS(washp,file.path(objdir,"wash_preds.rds"))
 
 # Plot prediction maps ------------------------
 
+washp=readRDS(file.path(objdir,"wash_preds.rds"))
+
 #crop with usplot 
 #this can take a while
 washp2=st_intersection(washp,usplot)  
 
-#test version,crop to AL
-test=washp2[washp2$State_Name=="ALABAMA",]
-string="test"
-colname="sl_q1"
-response="sl"
-map=test
+#string="Step Length (m)"
 WashMap<-function(map,response,colname,incleg){
   #parse(text=colname)
   rci=grep(paste0("^",response,"_q"),colnames(map))
@@ -240,6 +241,8 @@ WashMap<-function(map,response,colname,incleg){
 }
 
 ## SL -------------------------------------
+string="Step Length (m)"
+
 #map,response,colname,incleg
 washq1.sl=WashMap(washp2,"^sl","sl_q1",FALSE)
 washq2.sl=WashMap(washp2,"^sl","sl_q2",FALSE)
@@ -288,10 +291,4 @@ sigma.disp_pg=plot_grid(washq1.sigma.disp, washq2.sigma.disp, washq3.sigma.disp,
 ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.disp_pmap.png"),plot=sigma.disp_pg,height=6.5,width=9,units="in")
 ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.disp_legend.png"),plot=washleg.sigma.disp,height=6.5,width=9,units="in")
 
-## Make map grids -------------------
-
-sl_pg=plot_grid(washq1.sl, washq2.sl, washq3.sl, washq4.sl, nrow = 2)
-sigmasl_pg=plot_grid(washq1.sigma.sl, washq2.sigma.sl, washq3.sigma.sl, washq4.sigma.sl, nrow = 2)
-disp_pg=plot_grid(washq1.disp, washq2.disp, washq3.disp, washq4.disp, nrow = 2)
-sigmadisp_pg=plot_grid(washq1.sigma.disp, washq2.sigma.disp, washq3.sigma.disp, washq4.sigma.disp, nrow = 2)
 

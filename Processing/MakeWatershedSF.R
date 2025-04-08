@@ -54,7 +54,10 @@ lcd<-raster(mactheknife::resolve_alias(envls[grep("NLCD_2021_alias",envls)]))
 #TC
 tc<-raster(mactheknife::resolve_alias(envls[grep("nlcd_tc_2021_alias",envls)]))
 #Roads
-rds<-st_read(mactheknife::resolve_alias(envls[grep("OutlineRoads_alias",envls)]))
+rd1<-raster("/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Env_Data/Roads/2018/road_density_rasters/final_roads1.tif")
+rd2<-raster("/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Env_Data/Roads/2018/road_density_rasters/final_roads2.tif")
+rd3<-raster("/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Env_Data/Roads/2018/road_density_rasters/final_roads3.tif")
+
 #Rgd
 rgd<-raster(mactheknife::resolve_alias(envls[grep("rgd_5070_alias",envls)]))
 
@@ -107,7 +110,7 @@ rds=st_transform(rds,crs=st_crs(lcd))
 wash=st_transform(wash,crs=st_crs(lcd))
 #compare CRS for all spatials
 compareCRS(lcd,wash)
-compareCRS(lcd,rds)
+#compareCRS(lcd,rds)
 compareCRS(lcd,rgd)
 compareCRS(lcd,mast)
 compareCRS(pigd,wash)
@@ -213,6 +216,7 @@ meanvar_tc<-function(x){
   return(data.frame("tc_mn"=mn_val,"tc_var"=var_val))
 }
 
+
 #for drt
 intersect_pull_drt=function(x){
   drt=st_intersection(x,ctri)
@@ -268,6 +272,18 @@ x=exact_extract(tc, sf2, coverage_area = FALSE, summarize_df = TRUE, fun=meanvar
 
 sf3=dplyr::bind_cols(sf2,x)
 
+#rd1- mean and sd
+rd1x=exact_extract(rd1, sf3, coverage_area = FALSE, summarize_df = TRUE, fun=meanvar_tc)
+colnames(rd1x)=c("rd1_mn","rd1_var")
+
+#rd2- mean and sd
+rd2x=exact_extract(rd2, sf3, coverage_area = FALSE, summarize_df = TRUE, fun=meanvar_tc)
+colnames(rd1x)=c("rd2_mn","rd2_var")
+
+#rd3- mean and sd
+rd3x=exact_extract(rd3, sf3, coverage_area = FALSE, summarize_df = TRUE, fun=meanvar_tc)
+colnames(rd1x)=c("rd3_mn","rd3_var")
+
 #mast- mean and sd
 mastx=exact_extract(mast, sf3, coverage_area = FALSE, summarize_df = TRUE, fun=meanvar_tc)
 colnames(mastx)=c("mast_mn","mast_var")
@@ -276,12 +292,9 @@ colnames(mastx)=c("mast_mn","mast_var")
 rgdx=exact_extract(rgd, sf3, coverage_area = FALSE, summarize_df = TRUE, fun=meanvar_tc)
 colnames(rgdx)=c("rgd_mn","rgd_var")
 
-#rds- mean and sd
-rdsx1=st_intersection(rds,sf1)
-rds_mn=mean(rdsx1$Shape_Area)
-rds_var=var(rdsx1$Shape_Area)
-rdsx=data.frame("rds_mn"=rds_mn,"rds_var"=rds_var)
-
+sf3=dplyr::bind_cols(sf3,rd1x)
+sf3=dplyr::bind_cols(sf3,rd2x)
+sf3=dplyr::bind_cols(sf3,rd3x)
 sf3=dplyr::bind_cols(sf3,mastx)
 sf3=dplyr::bind_cols(sf3,rgdx)
 sf3=dplyr::bind_cols(sf3,rdsx)
@@ -410,7 +423,7 @@ washsf_final=dplyr::bind_cols(washsf_out,sf_tempvar2)
 
 # Save final output ------------------------------------------------------------
 
-saveRDS(washsf_final,file.path(objdir,"wash_envcov_final.rds"))
+saveRDS(washsf_final,file.path(objdir,"wash_envcov_final_2.rds"))
 
 
 

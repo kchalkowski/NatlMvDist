@@ -9,6 +9,11 @@ g_legend <- function(a.gplot){
   legend
 }
 
+
+CVstats=CVstats_sl.random
+studycounts.df=studycounts
+response="RMSE"
+lab="sl"
 make.varsize.dotplots<-function(CVstats, studycounts.df, response, lab){
 if(length(unique(CVstats$type))>1){
 colors=c("#039e8c", "#832b9e") 
@@ -26,8 +31,7 @@ if(lab=="sl"){xlab=paste0("Daily step length mean prediction ",response)}
 if(lab=="sigmasl"){xlab=paste0("Daily step length dispersion prediction ",response)}
 if(lab=="disp"){xlab=paste0("Daily displacement mean prediction ",response)}
 if(lab=="sigmadisp"){xlab=paste0("Daily displacement dispersion prediction ",response)}
-if(lab=="tenavg"){xlab=paste0("Mean of top 10% of daily step length prediction ",response)}
-    #print(xlab)
+
   #input vars needed: CVstats df, studycounts
   CVstats=left_join(CVstats, studycounts.df, by="region")
   

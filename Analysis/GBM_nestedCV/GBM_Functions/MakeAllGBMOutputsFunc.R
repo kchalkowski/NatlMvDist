@@ -32,7 +32,7 @@ MakeAllGBMOutputs<-function(path,split_type,pigsums,response,response_str,distri
   if(!dir.exists(file.path(path,"GBM_Null"))){dir.create(file.path(path,"GBM_Null"))}
   
 #for testing
-ko_t=2 #outer k-fold cross validations
+ko_t=10 #outer k-fold cross validations
 ki_t=2 #inner k-fold cross validations
 
 #X vec is a vector of indices with parameters included in the model
@@ -41,6 +41,8 @@ X_vec.start=c(
   which(colnames(pigsums)=="season"),
   which(colnames(pigsums)=="period"),
   which(colnames(pigsums)=="mean_tc"):
+  which(colnames(pigsums)=="mean_rd3"),
+  which(colnames(pigsums)=="mean_drt"):
   which(colnames(pigsums)=="var_lc_24")
         )
 

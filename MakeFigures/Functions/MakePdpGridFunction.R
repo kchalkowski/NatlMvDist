@@ -2,13 +2,14 @@
 #numplots=12
 #rel.inf=rel.inf.sigma.sl
 #gbm.object=gbm.sigma.sl
-#data=pigsums2
+#data=pigsums_sl
 #opt.params=sigma.sl.opt.params.kfold
-#ylims=c(-0.3,0.3)
+#ylims=c(-0.35,0.35)
 
 #####Making above loop into a function for repeated use
 MakePdpGrid<-function(numplots,rel.inf,gbm.object,data,opt.params,ylims,path){
   myplots <- vector('list', length=numplots) #initiate empty plotlist
+  rel.inf<-rel.inf[order(rel.inf$rel.inf,decreasing=TRUE),]
   vars=rownames(rel.inf)[1:numplots] #set vector of top numplots most important vars
   varneat=rel.inf[1:12,1]
   for (i in seq_along(vars)) {

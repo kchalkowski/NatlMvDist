@@ -30,10 +30,10 @@ library(viridis)
 library(gridGraphics)
 
 #set directories
-home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
+home="/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/2_Projects/StatPigMvmt/Pipeline_R2"
 outdir=file.path(home,"4_Outputs")
 funcdir<-file.path(home,"1_Scripts","MakeFigures","Functions")
-filestr<-"3Mar25_Runs"
+filestr<-"04APR25_Runs"
 objdir<-file.path(home,"2_Data","Objects")
 if(!dir.exists(file.path(outdir,filestr,"FigTab"))){dir.create(file.path(outdir,filestr,"FigTab"))}
 #read in pigsums dataset
@@ -43,13 +43,13 @@ pigswsite<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 pigs<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 
 ## Format pigsums df ------------------
-
+colnames(pigsums)
 #region got duplicated, fix this
 colnames(pigsums)[3]<-"region"
 
 #make sure all correct classes
-num.cols=c(9:12,14:36,38:62)
-cat.cols=c(1,2,3,4,5,6,7,8,13,37)
+num.cols=c(9:14,17:64)
+cat.cols=c(1,2,3,4,5,6,7,8)
   
 pigsums[,num.cols] <- lapply(pigsums[,num.cols],as.numeric)
 pigsums[,cat.cols] <- lapply(pigsums[,cat.cols],as.factor)
@@ -246,6 +246,7 @@ colnames(model.sel.tbl.total)=c("full RMSE random", "full r2 random", "drop 01 R
 model.sel.tbl.total[1:4,1:6]=model.sel.tbl
 model.sel.tbl.total[1:4,7:12]=model.sel.tbl.region
 
+#Removing R2
 model.sel.tbl.total=model.sel.tbl.total[,-c(2,4,6,8,10,12,14,16)]
 
 
@@ -255,7 +256,7 @@ write.csv(model.sel.tbl.total,file.path(outdir,filestr,"FigTab","ModelSelTblTota
 
 getXvec<-function(model.sel.tbl.total,out.opt){
   X_vec_list=vector(mode="list",length=4)
-  names(X_vec_list)<-c("Xsl","sigmasl","Xdisp","sigmadisp")
+  names(X_vec_list)<-c("Xsl","sigma.sl","Xdisp","sigma.disp")
   
   X_sel=data.frame(matrix(nrow=4,ncol=4))
   colnames(X_sel)<-c("response","X_vec","reg_ran","vars")
@@ -263,7 +264,7 @@ getXvec<-function(model.sel.tbl.total,out.opt){
     for(i in 1:nrow(model.sel.tbl.total)){
       X_sel[i,1]=rownames(model.sel.tbl.total)[i]
       c_ind=which(model.sel.tbl.total[i,]==min(model.sel.tbl.total[i,]))
-      X_sel[i,2]=colnames(model.sel.tbl.total)[c_ind]
+      X_sel[i,2]=colnames(model.sel.tbl.total)[c_ind[length(c_ind)]]
     }
     
     #parse text in X sel: region or random
@@ -273,7 +274,6 @@ getXvec<-function(model.sel.tbl.total,out.opt){
     #parse text in X sel: variable sel
     X_sel[grep("full",X_sel$X_vec),4]<-"Full"
     X_sel[grep("drop 01",X_sel$X_vec),4]<-"X_vec_01Drop"
-    X_sel[grep("lasso",X_sel$X_vec),4]<-"X_vec_postlasso"
     X_sel[grep("null",X_sel$X_vec),4]<-"Null"
     
     if(out.opt=="X_sel"){
@@ -287,10 +287,14 @@ getXvec<-function(model.sel.tbl.total,out.opt){
           which(colnames(pigsums)=="season"),
           which(colnames(pigsums)=="period"),
           which(colnames(pigsums)=="mean_tc"):
-            which(colnames(pigsums)=="var_lc_24")
+          which(colnames(pigsums)=="mean_rd3"),
+          which(colnames(pigsums)=="mean_drt"):
+            which(colnames(pigsums)=="var_rd3"),
+          which(colnames(pigsums)=="var_drt"):
+          which(colnames(pigsums)=="var_lc_24")
         )
       }
-      if(X_sel[i,4]=="X_vec_01Drop"|X_sel[i,4]=="X_vec_postlasso"){
+      if(X_sel[i,4]=="X_vec_01Drop"){
         X_vec_folder=file.path(outdir,filestr,X_sel[i,3],X_sel[i,4])
         Xfiles=list.files(X_vec_folder,full.names=TRUE)
         Xfile=Xfiles[grep(names(X_vec_list)[i],Xfiles)]
@@ -314,11 +318,12 @@ X_sel=getXvec(model.sel.tbl.total,"X_sel")
 #hard coding for 01 drop for now
 sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[1,3],"GBM_01Drop","sl_bestmodelparams.csv"))
 sigma.sl.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[2,3],"sigma.sl_bestmodelparams.csv"))
-disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"GBM_01Drop","disp_bestmodelparams.csv"))
-sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"sigma.disp_bestmodelparams.csv"))
+disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[3,3],"disp_bestmodelparams.csv"))
+sigma.disp.opt.params.kfold=read.csv(file.path(outdir,filestr,X_sel[4,3],"GBM_01Drop","sigma.disp_bestmodelparams.csv"))
 
 ## determine X vec for each response --------
 X_vec_list=getXvec(model.sel.tbl.total,"Xlist")
+colnames(pigsums_displ)[X_vec_list$Xdisp]
 
 ## Run GBMs --------
 gbm.sl=gbm.fixed(data=pigsums_sl, gbm.x=X_vec_list$Xsl, gbm.y=which(colnames(pigsums_sl)=="sl_mean"),
@@ -326,20 +331,20 @@ gbm.sl=gbm.fixed(data=pigsums_sl, gbm.x=X_vec_list$Xsl, gbm.y=which(colnames(pig
                  tree.complexity=sl.opt.params.kfold$tree.complexity, 
                  n.trees=sl.opt.params.kfold$n.trees,
                  bag.fraction=sl.opt.params.kfold$bag.fraction,
-                 family="poisson") 
+                 family="poisson")
 gbm.disp=gbm.fixed(data=pigsums_displ, gbm.x=X_vec_list$Xdisp, gbm.y=which(colnames(pigsums)=="displ_mean"),
                    learning.rate=disp.opt.params.kfold$learning.rate, 
                    tree.complexity=disp.opt.params.kfold$tree.complexity, 
                    n.trees=disp.opt.params.kfold$n.trees,
                    bag.fraction=disp.opt.params.kfold$bag.fraction,
                    family="poisson") 
-gbm.sigma.sl=gbm.fixed(data=pigsums_sigmasl, gbm.x=X_vec_list$sigmasl, gbm.y=which(colnames(pigsums)=="sl_disp"),
+gbm.sigma.sl=gbm.fixed(data=pigsums_sigmasl, gbm.x=X_vec_list$sigma.sl, gbm.y=which(colnames(pigsums)=="sl_disp"),
                        learning.rate=sigma.sl.opt.params.kfold$learning.rate, 
                        tree.complexity=sigma.sl.opt.params.kfold$tree.complexity, 
                        n.trees=sigma.sl.opt.params.kfold$n.trees,
                        bag.fraction=sigma.sl.opt.params.kfold$bag.fraction,
                        family="gaussian") 
-gbm.sigma.disp=gbm.fixed(data=pigsums_sigmadisp, gbm.x=X_vec_list$sigmadisp, gbm.y=which(colnames(pigsums)=="displ_disp"),
+gbm.sigma.disp=gbm.fixed(data=pigsums_sigmadisp, gbm.x=X_vec_list$sigma.disp, gbm.y=which(colnames(pigsums)=="displ_disp"),
                          learning.rate=sigma.disp.opt.params.kfold$learning.rate, 
                          tree.complexity=sigma.disp.opt.params.kfold$tree.complexity, 
                          n.trees=sigma.disp.opt.params.kfold$n.trees,
@@ -429,13 +434,9 @@ RemoveZeroInfluence=function(relinftbl){
 }
 
 rel.inf.sl=RemoveZeroInfluence(rel.inf.sl)
-rel.inf.sl_region=RemoveZeroInfluence(rel.inf.sl_region)
 rel.inf.sigma.sl=RemoveZeroInfluence(rel.inf.sigma.sl)
-rel.inf.sigma.sl_region=RemoveZeroInfluence(rel.inf.sigma.sl_region)
 rel.inf.disp=RemoveZeroInfluence(rel.inf.disp)
-rel.inf.disp_region=RemoveZeroInfluence(rel.inf.disp_region)
 rel.inf.sigma.disp=RemoveZeroInfluence(rel.inf.sigma.disp)
-rel.inf.sigma.disp_region=RemoveZeroInfluence(rel.inf.sigma.disp_region)
 
 #make formatted rel influence plots
 ri.sl=ggplot(rel.inf.sl, aes(x = reorder(var,rel.inf), y = rel.inf, fill=rel.inf))+
@@ -484,15 +485,19 @@ relinf.pg=plot_grid(
 ggsave(file.path(outdir,filestr,"FigTab","relinf_pg.png"),plot=relinf.pg,height=9,width=6.5,units="in")
 
 
-# Partial dependence plots -----------------
+# FIXPartial dependence plots -----------------
 
 numplots=12
 
 #Make partial dependence plots for each response top model, top 12
+#sl
 MakePdpGrid(numplots,rel.inf.sl,gbm.sl,pigsums_sl,sl.opt.params.kfold,c(-0.35,0.35))
+#sigmasl
 MakePdpGrid(numplots,rel.inf.sigma.sl,gbm.sigma.sl,pigsums_sigmasl,sigma.sl.opt.params.kfold,c(-0.35,0.35))
+#displ
 MakePdpGrid(numplots,rel.inf.disp,gbm.disp,pigsums_displ,disp.opt.params.kfold,c(-0.9,0.9))
-MakePdpGrid(numplots,rel.inf.sigma.disp,gbm.sigma.disp,pigsums_sigmadisp,sigma.disp.opt.params.kfold,c(-0.05,0.05))
+#sigmadispl
+MakePdpGrid(numplots,rel.inf.sigma.disp,gbm.sigma.disp,pigsums_sigmadisp,sigma.disp.opt.params.kfold,c(-0.15,0.15))
 #can't save as plot objects, need to save manually
 
 # Cross-validation stats, region vs. random -----------------
@@ -504,20 +509,9 @@ MakePdpGrid(numplots,rel.inf.sigma.disp,gbm.sigma.disp,pigsums_sigmadisp,sigma.d
 ## Get basic CV tables -----------------
 
 CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf,"CVtbl_only")
-CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
+CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigma.sl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
 CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf,"CVtbl_only")
-CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
-
-CVstats_sl.region=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","region",studydf,"CVtbl_only")
-CVstats_sigma.sl.region=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","region",studydf,"CVtbl_only")
-CVstats_disp.region=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","region",studydf,"CVtbl_only")
-CVstats_sigma.disp.region=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","region",studydf,"CVtbl_only")
-
-#combine CV method sets
-CVstats_sl.total=rbind(CVstats_sl.random,CVstats_sl.region)
-CVstats_sigma.sl.total=rbind(CVstats_sigma.sl.random,CVstats_sigma.sl.region)
-CVstats_disp.total=rbind(CVstats_disp.random,CVstats_disp.region)
-CVstats_sigma.disp.total=rbind(CVstats_sigma.disp.random,CVstats_sigma.disp.region)
+CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigma.disp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
 
 ## order rows by state -----------------
 #Make study counts to var dot plot sizes
@@ -530,60 +524,53 @@ studycounts=as.data.frame(pigsums_sl %>%
 ## Get study IDs instead of names -----------------
 
 ## Make CV dot plots -----------------
+colnames(CVstats_sl.random)[1]<-"region"
+colnames(CVstats_sigma.sl.random)[1]<-"region"
+colnames(CVstats_disp.random)[1]<-"region"
+colnames(CVstats_sigma.disp.random)[1]<-"region"
 
-sl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sl.total,studycounts,"RMSE","sl"))
-sigmasl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.total,studycounts, "RMSE","sigmasl"))
-disp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_disp.total,studycounts, "RMSE","disp"))
-sigmadisp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.total,studycounts, "RMSE","sigmadisp"))
+#Draw dotplots
+sl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sl.random,studycounts,"RMSE","sl"))
+sigmasl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.random,studycounts, "RMSE","sigmasl"))
+disp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_disp.random,studycounts, "RMSE","disp"))
+sigmadisp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.random,studycounts, "RMSE","sigmadisp"))
 
-sl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sl.total,studycounts,"R2","sl"))
-sigmasl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.total,studycounts, "R2","sigmasl"))
-disp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_disp.total,studycounts, "R2","disp"))
-sigmadisp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.total,studycounts, "R2","sigmadisp"))
+sl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sl.random,studycounts,"R2","sl"))
+sigmasl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.random,studycounts, "R2","sigmasl"))
+disp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_disp.random,studycounts, "R2","disp"))
+sigmadisp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.random,studycounts, "R2","sigmadisp"))
 
-ggarrange(sl.rmse.dot,
-          sigmasl.rmse.dot,
-          disp.rmse.dot,
-          sigmadisp.rmse.dot,
-          #tenavg.rmse.dot,
-          common.legend=TRUE, 
-          legend="right",
-          ncol=2,nrow=2,labels=c("a","b","c","d"), 
-          font.label=list(size=45,face="bold"))
+#save dotplots
+path=file.path(outdir,filestr,"FigTab","dotplots_RMSE_R2")
+if(!dir.exists(path)){dir.create(path)}
 
-ggarrange(sl.r2.dot,
-          sigmasl.r2.dot,
-          disp.r2.dot,
-          sigmadisp.r2.dot,
-          #tenavg.r2.dot,
-          common.legend=TRUE, 
-          legend="right",
-          ncol=2,nrow=2,labels=c("a","b","c","d"), 
-          font.label=list(size=45,face="bold"))
+ggsave(file.path(path,"sl.rmse.dot.png"),plot=sl.rmse.dot,height=18,width=12,units="in")
+ggsave(file.path(path,"sigmasl.rmse.dot.png"),plot=sigmasl.rmse.dot,height=18,width=12,units="in")
+ggsave(file.path(path,"disp.rmse.dot.png"),plot=disp.rmse.dot,height=18,width=12,units="in")
+ggsave(file.path(path,"sigmadisp.rmse.dot.png"),plot=sigmadisp.rmse.dot,height=18,width=12,units="in")
+
+ggsave(file.path(path,"sl.r2.dot.png"),plot=sl.r2.dot,height=18,width=12,units="in")
+ggsave(file.path(path,"sigmasl.r2.dot.png"),plot=sigmasl.r2.dot,height=18,width=12,units="in")
+ggsave(file.path(path,"disp.r2.dot.png"),plot=disp.r2.dot,height=18,width=12,units="in")
+ggsave(file.path(path,"sigmadisp.r2.dot.png"),plot=sigmadisp.r2.dot,height=18,width=12,units="in")
 
 # Pred vs obs plots -----------------
 CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf,"all")
-CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf,"all")
+CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigma.sl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf,"all")
 CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf,"all")
-CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"all")
-
-CVstats_sl.region=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","region",studydf,"all")
-CVstats_sigma.sl.region=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigmasl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","region",studydf,"all")
-CVstats_disp.region=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","region",studydf,"all")
-CVstats_sigma.disp.region=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigmadisp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","region",studydf,"all")
+CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigma.disp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"all")
 
 #format prediction/test sets into dataframe for plotting
-sl_predobs.df=CombinePredObs(CVstats_sl.random,CVstats_sl.region)
-sigma.sl_predobs.df=CombinePredObs(CVstats_sigma.sl.random,CVstats_sigma.sl.region)
-disp_predobs.df=CombinePredObs(CVstats_disp.random,CVstats_disp.region)
-sigma.disp_predobs.df=CombinePredObs(CVstats_sigma.disp.random,CVstats_sigma.disp.region)
+sl_predobs.df=CombinePredObs(CVstats_sl.random)
+sigma.sl_predobs.df=CombinePredObs(CVstats_sigma.sl.random)
+disp_predobs.df=CombinePredObs(CVstats_disp.random)
+sigma.disp_predobs.df=CombinePredObs(CVstats_sigma.disp.random)
 
 #format for plotting histograms
 sl_predobs.df2=as.data.frame(pivot_longer(sl_predobs.df,cols=c("test","preds")))
 sigma.sl_predobs.df2=as.data.frame(pivot_longer(sigma.sl_predobs.df,cols=c("test","preds")))
 disp_predobs.df2=as.data.frame(pivot_longer(disp_predobs.df,cols=c("test","preds")))
 sigma.disp_predobs.df2=as.data.frame(pivot_longer(sigma.disp_predobs.df,cols=c("test","preds")))
-
 
 #get scatter plots
 sl.po.scat=ggplot(sl_predobs.df, aes(test, preds, color = factor(CVmethod))) + 
@@ -642,39 +629,24 @@ sigmadisp.po.scat=ggplot(sigma.disp_predobs.df, aes(test, preds, color = factor(
   theme(axis.text.x = element_text(size=10),
         axis.text.y = element_text(size=9))
 
+#save po scats
 path=file.path(outdir,filestr,"FigTab","pred_obs_scatters")
+if(!dir.exists(path)){dir.create(path)}
 
-png(file=file.path(path,"sl_po_scatter.png"),
-    width=770, height=730)
-sl.po.scat 
-dev.off()
-
-png(file=file.path(path,"sigmasl_po_scatter.png"),
-    width=770, height=730)
-sigmasl.po.scat
-dev.off()
-
-png(file=file.path(path,"disp_po_scatter.png"),
-    width=770, height=730)
-disp.po.scat
-dev.off()
-
-png(file=file.path(path,"sigmadisp_po_scatter.png"),
-    width=770, height=730)
-sigmadisp.po.scat
-dev.off()
+ggsave(file.path(path,"sl_po_scatter.png"),plot=sl.po.scat,height=18,width=12,units="in")
+ggsave(file.path(path,"sigmasl_po_scatter.png"),plot=sigmasl.po.scat,height=18,width=12,units="in")
+ggsave(file.path(path,"disp_po_scatter.png"),plot=disp.po.scat,height=18,width=12,units="in")
+ggsave(file.path(path,"sigmadisp_po_scatter.png"),plot=sigmadisp.po.scat,height=18,width=12,units="in")
 
 # Density plots -----------------
 
+#Formatting
 sl_predobs.df2[sl_predobs.df2$name=="test",3]<-"observed"
 sl_predobs.df2[sl_predobs.df2$name=="preds",3]<-"predicted"
-
 sigma.sl_predobs.df2[sigma.sl_predobs.df2$name=="test",3]<-"observed"
 sigma.sl_predobs.df2[sigma.sl_predobs.df2$name=="preds",3]<-"predicted"
-
 disp_predobs.df2[disp_predobs.df2$name=="test",3]<-"observed"
 disp_predobs.df2[disp_predobs.df2$name=="preds",3]<-"predicted"
-
 sigma.disp_predobs.df2[sigma.disp_predobs.df2$name=="test",3]<-"observed"
 sigma.disp_predobs.df2[sigma.disp_predobs.df2$name=="preds",3]<-"predicted"
 
@@ -714,20 +686,15 @@ sigmadisp.dens<-sigma.disp_predobs.df2%>%
   facet_wrap(vars(CVmethod))+
   theme(text = element_text(size = 40))
 
-path=file.path(outdir,filestr,"FigTab","pred_obs_densities")
+#save histos
+path=file.path(outdir,filestr,"FigTab","histograms")
+if(!dir.exists(path)){dir.create(path)}
 
-png(file=file.path(path,"pr_dens_grid.png"),
-    width=2550, height=3300)
-ggarrange(sl.dens,
-          sigmasl.dens,
-          disp.dens,
-          sigmadisp.dens,
-          #tenavg.dens,
-          common.legend=TRUE, 
-          legend="right",
-          ncol=1,nrow=4,labels=c("a","b","c","d"), 
-          font.label=list(size=45,face="bold"))
-dev.off()
+ggsave(file.path(path,"sl_dens.png"),plot=sl.dens,height=18,width=12,units="in")
+ggsave(file.path(path,"sigsl_dens.png"),plot=sigmasl.dens,height=18,width=12,units="in")
+ggsave(file.path(path,"disp_dens.png"),plot=disp.dens,height=18,width=12,units="in")
+ggsave(file.path(path,"sigdisp_dens.png"),plot=sigmadisp.dens,height=18,width=12,units="in")
+
 
 # Violin plots -----------------------------
 
@@ -759,8 +726,8 @@ path=file.path(outdir,filestr,"FigTab","violin_plots")
 if(!dir.exists(path)){dir.create(path)}
 
 png(file=file.path(path,"violin_grid.png"),
-    width=1000, height=1000)
-ggarrange(p1,p2,p3,p4,nrow=2,ncol=2,labels="auto",font.label=list(size=50,face="bold"),hjust=-0.2, vjust=1)
+    width=1200, height=4000)
+ggarrange(p1,p2,p3,p4,nrow=4,ncol=1,labels="auto",font.label=list(size=50,face="bold"),hjust=-0.2, vjust=1)
 dev.off()
 
 
