@@ -6,7 +6,7 @@
 # Setup ----------------------------
 
 #vars
-filestr="TestRuns"
+filestr="04APR25_Runs"
 
 #load libraries
 library(simstudy)
@@ -15,18 +15,20 @@ library(dplyr)
 library(ggplot2)
 
 #set directories
-home<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/Projects/StatPigMvmt/Pipeline_R2"
+home<-"/Users/kayleigh.chalkowski/Library/CloudStorage/OneDrive-USDA/2_Projects/StatPigMvmt/Pipeline_R2"
 outdir<-file.path(home,"4_Outputs")
 objdir<-file.path(home,"2_Data","Objects")
+indir<-file.path(home,"2_Data","Input","Env_Cov")
 
 #read geolocation data
 pigs<-readRDS(file.path(objdir,"allsteps_daily.rds"))
 
 #read watersheds
-wash<-readRDS(file.path(objdir,"wash_envcov_final.rds"))
+wash<-readRDS(file.path(indir,"wash3.rds"))
 
 #read in uncertainty matrices
-unc.fs=list.files(file.path(outdir,filestr,"UncPredMats"),full.names=TRUE)
+unc.fs=list.files(file.path(outdir,filestr,"FigTab","UncPredMats"),full.names=TRUE)
+
 #keep quarterly ones
 unc.fs=unc.fs[grep("q",unc.fs)]
 
@@ -69,11 +71,11 @@ for(s in 1:length(season)){
     
     #for each watershed (row)
     for(i in 1:nrow(pmat)){
-      print(paste0("wash: ", i))
+      if(i%%100==0){print(paste0("wash: ", i))}
       
       #make distribution from each mean and disp/var
       minibootwash[i,4]=mean(pmat[i,])
-      minibootwash[i,5]=mean(pmat.disp[i,])
+      minibootwash[i,5]=max(mean(pmat.disp[i,]),0) #switch in case disp is <0
       gampams=simstudy::gammaGetShapeRate(minibootwash[i,4],minibootwash[i,5])
       
       #sample values from mean distribution
@@ -81,14 +83,16 @@ for(s in 1:length(season)){
       
     }
     
+    
     bootwash=rbind(bootwash,minibootwash)
     
   }
+  
+  
+  
 }
 
 #use for downstream tests
-bootwash=minibootwash
-##
 saveRDS(bootwash,file.path(outdir,filestr,"UncPredMats","bootwash.rds"))
 
 slq1=bootwash[bootwash$season=="q1"&bootwash$response=="sl",]
@@ -132,7 +136,7 @@ DoAllHisto<-function(pigs,bootwash,response){
     
     pq=RelDiffHisto_util(top=df$response,bottom=pigsq,20,response,paste0("q",q))
     histname=paste0("hist_q",q,"_",response,".png")
-    ggsave(paste0(outdir,filestr,histname),plot=pq,width=4,height=8)
+    ggsave(file.path(outdir,filestr,"FigTab","podiff_histos",histname),plot=pq,width=4,height=8)
     
   }
   
@@ -178,6 +182,8 @@ combined_qq<-function(meanobs,meanpred,stepobs,steppred,quantiles = seq(0, 1, 0.
 }
 
 ## Combined KS test/qq plot loop -------------
+
+#response="disp"
 Do.KS.Tests<-function(bootwash,pigs,response){
   coln=colnames(pigs)[grep(response,colnames(pigs))]
   pigs2=pigs[!is.na(pigs[,which(colnames(pigs)==coln)]),]
@@ -190,6 +196,7 @@ Do.KS.Tests<-function(bootwash,pigs,response){
   for(q in 1:4){
     pigsq=pigs2[pigs2$season==as.factor(paste0("q",q)),]
     df=bootwash[bootwash$season==paste0("q",q)&bootwash$response==response,]
+    
     df2=data.frame(type="boots",response=unlist(c(df[,6:8])))
     
     #Steps!
@@ -197,21 +204,21 @@ Do.KS.Tests<-function(bootwash,pigs,response){
     pig.step.vec[[q]]=pigsq[,which(colnames(pigs)==coln)]
     
     #Means!
-    sim.mu.vec[[q]]=mean(df$u)
+    sim.mu.vec[[q]]=df$u
     pig.mu=pigsq %>% dplyr::group_by(animalid) %>% dplyr::summarise(mu=mean(eval(parse(text=coln)))) %>% dplyr::select(mu) %>% as.data.frame()
     pig.mu.vec[[q]]=pig.mu$mu
     
     model.mu=ks.test(pig.mu.vec[[q]],sim.mu.vec[[q]]) #0.28455
     model.step=ks.test(pig.step.vec[[q]],sim.step.vec[[q]]) #0.0796
     
-    ks.res[i,3]=model.mu$statistic
-    ks.res[i,4]=model.step$statistic
+    ks.res[q,3]=model.mu$statistic
+    ks.res[q,4]=model.step$statistic
     
-    for(q in 1:4){
-      qq=combined_qq(pig.mu.vec[[1]],sim.mu.vec[[1]],pig.step.vec[[1]],sim.step.vec[[1]],quantiles = seq(0, 1, 0.01),"sl_1")
-      ggsave(file.path(outdir,response,"_",q,"_qq.png"),qq,width=7,height=6)
+    #for(q in 1:4){
+      qq=combined_qq(pig.mu.vec[[q]],sim.mu.vec[[q]],pig.step.vec[[q]],sim.step.vec[[q]],quantiles = seq(0, 1, 0.01),"sl_1")
+      ggsave(file.path(outdir,"04APR25_Runs","FigTab","qqplots",paste0(response,"_",q,"_qq.png")),qq,width=7,height=6)
       
-    }
+    #}
     
   }
   
@@ -226,6 +233,7 @@ return(list("pig.mu.vec"=pig.mu.vec,
 sl_ks_list=Do.KS.Tests(bootwash,pigs,"sl")
 displ_ks_list=Do.KS.Tests(bootwash,pigs,"disp")
 
-#write.csv(sl_ks_list$ks.res,file.path(outdir,"ksres.csv"))
-#write.csv(displ_ks_list$ks.res,file.path(outdir,"ksres.csv"))
+ks_res_out=rbind(sl_ks_list$ks.res,displ_ks_list$ks.res)
+
+write.csv(ks_res_out,file.path(outdir,"04APR25_Runs","FigTab","kstabs","ks_table.csv"))
 
