@@ -93,7 +93,9 @@ for(s in 1:length(season)){
 }
 
 #use for downstream tests
-saveRDS(bootwash,file.path(outdir,filestr,"UncPredMats","bootwash.rds"))
+#saveRDS(bootwash,file.path(outdir,filestr,"UncPredMats","bootwash.rds"))
+bootwash=readRDS(file.path(outdir,filestr,"UncPredMats","bootwash.rds"))
+
 
 slq1=bootwash[bootwash$season=="q1"&bootwash$response=="sl",]
 #dispq1=bootwash[bootwash$season=="q1"&bootwash$response=="disp",]
@@ -125,7 +127,7 @@ df2.q1=data.frame(type="boots",sl=unlist(c(slq1[,6:8])))
 #simplify this
 
 #Make function to make histo for each response/quarter
-DoAllHisto<-function(pigs,bootwash,response){
+DoAllHisto<-function(pigs,bootwash,response,ybreaks=NULL){
   coln=colnames(pigs)[grep(response,colnames(pigs))]
   pigs2=pigs[!is.na(pigs[,which(colnames(pigs)==coln)]),]
   
@@ -134,7 +136,7 @@ DoAllHisto<-function(pigs,bootwash,response){
     df=bootwash[bootwash$season==paste0("q",q)&bootwash$response==response,]
     df=data.frame(type="boots",response=unlist(c(df[,6:8])))
     
-    pq=RelDiffHisto_util(top=df$response,bottom=pigsq,20,response,paste0("q",q))
+    pq=RelDiffHisto_util(top=df$response,bottom=pigsq,20,response,paste0("q",q),ybreaks)
     histname=paste0("hist_q",q,"_",response,".png")
     ggsave(file.path(outdir,filestr,"FigTab","podiff_histos",histname),plot=pq,width=4,height=8)
     
@@ -143,8 +145,8 @@ DoAllHisto<-function(pigs,bootwash,response){
 }
 
 #Run histos for all q, response
-DoAllHisto(pigs,bootwash,"sl")
-DoAllHisto(pigs,bootwash,"disp")
+DoAllHisto(pigs,bootwash,"sl",ybreaks=c(-2,-1.5,-1,-0.5,0,0.5,1,1.5,2))
+DoAllHisto(pigs,bootwash,"disp",ybreaks=c(-12,-10,-8,-6,-4,-2,0,2,4,6,8,10,12))
 
 # Make QQ plots and Run KS tests ---------------------
 
@@ -214,11 +216,9 @@ Do.KS.Tests<-function(bootwash,pigs,response){
     ks.res[q,3]=model.mu$statistic
     ks.res[q,4]=model.step$statistic
     
-    #for(q in 1:4){
-      qq=combined_qq(pig.mu.vec[[q]],sim.mu.vec[[q]],pig.step.vec[[q]],sim.step.vec[[q]],quantiles = seq(0, 1, 0.01),"sl_1")
+      response_season=paste0(response,"_",q)
+      qq=combined_qq(pig.mu.vec[[q]],sim.mu.vec[[q]],pig.step.vec[[q]],sim.step.vec[[q]],quantiles = seq(0, 1, 0.01),response_season)
       ggsave(file.path(outdir,"04APR25_Runs","FigTab","qqplots",paste0(response,"_",q,"_qq.png")),qq,width=7,height=6)
-      
-    #}
     
   }
   

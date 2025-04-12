@@ -1,6 +1,13 @@
 #Makes top-bottom histogram figures for predictive map figures
 
-RelDiffHisto_util<-function(top,bottom,bins,response,quarter){
+
+#pq=RelDiffHisto_util(top=df$response,bottom=pigsq,20,response,paste0("q",q),ybreaks)
+top=df$response
+bottom=pigsq
+bins=20
+response="sl"
+quarter=paste0("q",q)
+RelDiffHisto_util<-function(top,bottom,bins,response,quarter,ybreaks=NULL){
 
   #make dataframe format
   topdf=data.frame(name="top",resp=top)
@@ -50,11 +57,17 @@ RelDiffHisto_util<-function(top,bottom,bins,response,quarter){
   #get key for plotting
   washvec.df4$podiff2=if_else(washvec.df4$podiff>0,"pos","neg")
   
+  #make scale if ybreaks NULL
+  if(is.null(ybreaks)){
+  ybreaks=c(0,max(washvec.df4$podiff))
+  }
+  
   p<-ggplot(washvec.df4) + 
     geom_col(position="identity",alpha=1,mapping = aes(x=bin, y = podiff,fill=podiff2))+
     scale_fill_manual(values=c("#C0C0C0","#F96545"))+
     theme(legend.position = "none")+
     xlab(paste(response,quarter,sep="_"))+
+    scale_y_continuous(breaks = ybreaks, limits=c(min(ybreaks),max(ybreaks)))+
     theme(
       panel.background = element_rect(fill='transparent'),
       panel.border = element_blank(),
