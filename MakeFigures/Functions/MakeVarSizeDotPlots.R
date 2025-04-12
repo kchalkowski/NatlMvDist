@@ -10,10 +10,10 @@ g_legend <- function(a.gplot){
 }
 
 
-CVstats=CVstats_sl.random
-studycounts.df=studycounts
-response="RMSE"
-lab="sl"
+#CVstats=CVstats_sl.random
+#studycounts.df=studycounts
+#response="RMSE"
+#lab="sl"
 make.varsize.dotplots<-function(CVstats, studycounts.df, response, lab){
 if(length(unique(CVstats$type))>1){
 colors=c("#039e8c", "#832b9e") 
