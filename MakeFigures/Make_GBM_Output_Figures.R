@@ -513,6 +513,12 @@ CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigma.sl,"sl
 CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf,"CVtbl_only")
 CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigma.disp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
 
+#save CVstats tables-- take a while to run
+saveRDS(CVstats_sl.random,file.path(objdir,"CVstats_sl.random.rds"))
+saveRDS(CVstats_sigma.sl.random,file.path(objdir,"CVstats_sigma.sl.random.rds"))
+saveRDS(CVstats_disp.random,file.path(objdir,"CVstats_disp.random.rds"))
+saveRDS(CVstats_sigma.disp.random,file.path(objdir,"CVstats_sigma.disp.random.rds"))
+
 ## order rows by state -----------------
 #Make study counts to var dot plot sizes
 studycounts=as.data.frame(pigsums_sl %>% 
@@ -522,12 +528,20 @@ studycounts=as.data.frame(pigsums_sl %>%
                                              State=first(state)))
 
 ## Get study IDs instead of names -----------------
-
-## Make CV dot plots -----------------
 colnames(CVstats_sl.random)[1]<-"region"
 colnames(CVstats_sigma.sl.random)[1]<-"region"
 colnames(CVstats_disp.random)[1]<-"region"
 colnames(CVstats_sigma.disp.random)[1]<-"region"
+
+snk=readRDS(file.path(objdir,"studynumkey.rds"))
+colnames(snk)[1]<-"region"
+
+CVstats_sl.random=left_join(CVstats_sl.random,snk)
+CVstats_sigma.sl.random=left_join(CVstats_sigma.sl.random,snk)
+CVstats_disp.random=left_join(CVstats_disp.random,snk)
+CVstats_sigma.disp.random=left_join(CVstats_sigma.disp.random,snk)
+
+## Make CV dot plots -----------------
 
 #Draw dotplots
 sl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sl.random,studycounts,"RMSE","sl"))
@@ -559,6 +573,11 @@ CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.pa
 CVstats_sigma.sl.random=GetCVStats_Table(pigsums_sigmasl,X_vec_list$sigma.sl,"sl_disp",sigma.sl.opt.params.kfold,"gaussian","random",studydf,"all")
 CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean",disp.opt.params.kfold,"poisson","random",studydf,"all")
 CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigma.disp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"all")
+
+saveRDS(CVstats_sl.random,file.path(objdir,"CVstats_sl.random_list.rds"))
+saveRDS(CVstats_sigma.sl.random,file.path(objdir,"CVstats_sigma.sl.random_list.rds"))
+saveRDS(CVstats_disp.random,file.path(objdir,"CVstats_disp.random_list.rds"))
+saveRDS(CVstats_sigma.disp.random,file.path(objdir,"CVstats_sigma.disp.random_list.rds"))
 
 #format prediction/test sets into dataframe for plotting
 sl_predobs.df=CombinePredObs(CVstats_sl.random)

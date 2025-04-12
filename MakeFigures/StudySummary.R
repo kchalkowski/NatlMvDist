@@ -23,6 +23,7 @@ pigsums<-readRDS(file.path(home,"2_Data","Objects","dailyPigSums.rds"))
 pigswsite<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 pigs<-readRDS(file.path(home,"2_Data","Objects","geolocsnatl_wDispl.rds"))
 studyref=read.csv(file.path(home,"2_Data","Input","Pigs","studydf.csv"))
+
 ## Format pigsums df ------------------
 colnames(pigsums)
 #region got duplicated, fix this
@@ -65,7 +66,10 @@ sdf3[sdf3$study=="Jim_SC",]$num<-18
 sdf3[sdf3$study=="Kilgo_USFS_SC3",]$num<-17
 sdf3[sdf3$study=="SREL_Contact_SC",]$num<-20
 sdf3[sdf3$study=="SREL_Vacuum_SC",]$num<-19
-View(sdf3)
 
+#Save key for GBM figure outputs
+saveRDS(sdf3[,c(2,9)],file.path(objdir,"studynumkey.rds"))
+
+#save outputs
 saveRDS(sdf3,file.path(objdir,"studydf.rds"))
 write.csv(sdf3,file.path(outdir,filestr,"FigTab","study_table.csv"))
