@@ -292,3 +292,18 @@ ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.disp_pmap.png"),plot=sigm
 ggsave(file.path(outdir,filestr,"FigTab","Maps","sigma.disp_legend.png"),plot=washleg.sigma.disp,height=6.5,width=9,units="in")
 
 
+# Get pred vals for ms -------------------------------------
+
+washp=readRDS(file.path(objdir,"wash_preds.rds"))
+string="^sl_q"
+
+minmax<-function(string){
+mat=st_drop_geometry(washp[,grep(string,colnames(washp))])
+c(min(mat),max(mat))
+}
+
+minmax("^sl_q")
+minmax("^disp_q")
+minmax("^sigmasl_q")
+minmax("^sigmadisp_q")
+

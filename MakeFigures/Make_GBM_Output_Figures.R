@@ -485,7 +485,7 @@ relinf.pg=plot_grid(
 ggsave(file.path(outdir,filestr,"FigTab","relinf_pg.png"),plot=relinf.pg,height=9,width=6.5,units="in")
 
 
-# FIXPartial dependence plots -----------------
+# Partial dependence plots -----------------
 
 numplots=12
 
@@ -514,10 +514,16 @@ CVstats_disp.random=GetCVStats_Table(pigsums_displ,X_vec_list$Xdisp,"displ_mean"
 CVstats_sigma.disp.random=GetCVStats_Table(pigsums_sigmadisp,X_vec_list$sigma.disp,"displ_disp",sigma.disp.opt.params.kfold,"gaussian","random",studydf,"CVtbl_only")
 
 #save CVstats tables-- take a while to run
-saveRDS(CVstats_sl.random,file.path(objdir,"CVstats_sl.random.rds"))
-saveRDS(CVstats_sigma.sl.random,file.path(objdir,"CVstats_sigma.sl.random.rds"))
-saveRDS(CVstats_disp.random,file.path(objdir,"CVstats_disp.random.rds"))
-saveRDS(CVstats_sigma.disp.random,file.path(objdir,"CVstats_sigma.disp.random.rds"))
+#saveRDS(CVstats_sl.random,file.path(objdir,"CVstats_sl.random.rds"))
+#saveRDS(CVstats_sigma.sl.random,file.path(objdir,"CVstats_sigma.sl.random.rds"))
+#saveRDS(CVstats_disp.random,file.path(objdir,"CVstats_disp.random.rds"))
+#saveRDS(CVstats_sigma.disp.random,file.path(objdir,"CVstats_sigma.disp.random.rds"))
+
+#read in
+CVstats_sl.random=readRDS(file.path(objdir,"CVstats_sl.random.rds"))
+CVstats_sigma.sl.random=readRDS(file.path(objdir,"CVstats_sigma.sl.random.rds"))
+CVstats_disp.random=readRDS(file.path(objdir,"CVstats_disp.random.rds"))
+CVstats_sigma.disp.random=readRDS(file.path(objdir,"CVstats_sigma.disp.random.rds"))
 
 ## order rows by state -----------------
 #Make study counts to var dot plot sizes
@@ -535,38 +541,60 @@ colnames(CVstats_sigma.disp.random)[1]<-"region"
 
 snk=readRDS(file.path(objdir,"studynumkey.rds"))
 colnames(snk)[1]<-"region"
+snk$num[snk$num=="21"]<-"23"
+snk$num[snk$num=="22"]<-"21"
+snk[snk$num=="20"&snk$region=="Raoul_FL1",]$num<-"22"
+
+studycounts=left_join(studycounts,snk,by="region")
+studycounts=studycounts[,c(5,1:4)]
+colnames(studycounts)[c(1,2)]<-c("region","name")
+studycounts$region<-as.character(studycounts$region)
 
 CVstats_sl.random=left_join(CVstats_sl.random,snk)
 CVstats_sigma.sl.random=left_join(CVstats_sigma.sl.random,snk)
 CVstats_disp.random=left_join(CVstats_disp.random,snk)
 CVstats_sigma.disp.random=left_join(CVstats_sigma.disp.random,snk)
 
-## Make CV dot plots -----------------
+#change cols
+CVstats_sl.random=CVstats_sl.random[,c(5,1:4)]
+CVstats_sigma.sl.random=CVstats_sigma.sl.random[,c(5,1:4)]
+CVstats_disp.random=CVstats_disp.random[,c(5,1:4)]
+CVstats_sigma.disp.random=CVstats_sigma.disp.random[,c(5,1:4)]
 
+colnames(CVstats_sl.random)[c(1,2)]<-c("region","name")
+CVstats_sl.random$region<-as.character(CVstats_sl.random$region)
+
+colnames(CVstats_sigma.sl.random)[c(1,2)]<-c("region","name")
+CVstats_sigma.sl.random$region<-as.character(CVstats_sigma.sl.random$region)
+
+colnames(CVstats_disp.random)[c(1,2)]<-c("region","name")
+CVstats_disp.random$region<-as.character(CVstats_disp.random$region)
+
+colnames(CVstats_sigma.disp.random)[c(1,2)]<-c("region","name")
+CVstats_sigma.disp.random$region<-as.character(CVstats_sigma.disp.random$region)
+
+
+#CVstats_sl.random=CVstats_sl.random[order(CVstats_sl.random$region),]
+## Make CV dot plots -----------------
+View(studycounts)
+
+studycounts$State<-as.character(studycounts$State)
+studycounts[studycounts$name=="PhD_MI",]$State<-"MI"
+studycounts$State<-as.factor(studycounts$State)
 #Draw dotplots
 sl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sl.random,studycounts,"RMSE","sl"))
 sigmasl.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.random,studycounts, "RMSE","sigmasl"))
 disp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_disp.random,studycounts, "RMSE","disp"))
 sigmadisp.rmse.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.random,studycounts, "RMSE","sigmadisp"))
 
-sl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sl.random,studycounts,"R2","sl"))
-sigmasl.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.sl.random,studycounts, "R2","sigmasl"))
-disp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_disp.random,studycounts, "R2","disp"))
-sigmadisp.r2.dot=ggdraw(make.varsize.dotplots(CVstats_sigma.disp.random,studycounts, "R2","sigmadisp"))
-
 #save dotplots
 path=file.path(outdir,filestr,"FigTab","dotplots_RMSE_R2")
 if(!dir.exists(path)){dir.create(path)}
 
-ggsave(file.path(path,"sl.rmse.dot.png"),plot=sl.rmse.dot,height=18,width=12,units="in")
-ggsave(file.path(path,"sigmasl.rmse.dot.png"),plot=sigmasl.rmse.dot,height=18,width=12,units="in")
-ggsave(file.path(path,"disp.rmse.dot.png"),plot=disp.rmse.dot,height=18,width=12,units="in")
-ggsave(file.path(path,"sigmadisp.rmse.dot.png"),plot=sigmadisp.rmse.dot,height=18,width=12,units="in")
-
-ggsave(file.path(path,"sl.r2.dot.png"),plot=sl.r2.dot,height=18,width=12,units="in")
-ggsave(file.path(path,"sigmasl.r2.dot.png"),plot=sigmasl.r2.dot,height=18,width=12,units="in")
-ggsave(file.path(path,"disp.r2.dot.png"),plot=disp.r2.dot,height=18,width=12,units="in")
-ggsave(file.path(path,"sigmadisp.r2.dot.png"),plot=sigmadisp.r2.dot,height=18,width=12,units="in")
+ggsave(file.path(path,"sl.rmse.dot.png"),plot=sl.rmse.dot,height=10,width=7,units="in")
+ggsave(file.path(path,"sigmasl.rmse.dot.png"),plot=sigmasl.rmse.dot,height=10,width=7,units="in")
+ggsave(file.path(path,"disp.rmse.dot.png"),plot=disp.rmse.dot,height=10,width=7,units="in")
+ggsave(file.path(path,"sigmadisp.rmse.dot.png"),plot=sigmadisp.rmse.dot,height=10,width=7,units="in")
 
 # Pred vs obs plots -----------------
 CVstats_sl.random=GetCVStats_Table(pigsums_sl,X_vec_list$Xsl,"sl_mean",sl.opt.params.kfold,"poisson","random",studydf,"all")
@@ -578,6 +606,35 @@ saveRDS(CVstats_sl.random,file.path(objdir,"CVstats_sl.random_list.rds"))
 saveRDS(CVstats_sigma.sl.random,file.path(objdir,"CVstats_sigma.sl.random_list.rds"))
 saveRDS(CVstats_disp.random,file.path(objdir,"CVstats_disp.random_list.rds"))
 saveRDS(CVstats_sigma.disp.random,file.path(objdir,"CVstats_sigma.disp.random_list.rds"))
+
+CVstats_disp.random<-readRDS(file.path(objdir,"CVstats_disp.random_list.rds"))
+CVstats_sigma.disp.random<-readRDS(file.path(objdir,"CVstats_sigma.disp.random_list.rds"))
+
+#rename study IDs
+studycounts=studycounts[order(studycounts$name),]
+
+CVstats_sl.random2=CVstats_sl.random[[2]]
+CVstats_sl.random2 <- CVstats_sl.random2[order(names(CVstats_sl.random2))]
+names(CVstats_sl.random2)<-studycounts$region
+CVstats_sl.random[[2]]=CVstats_sl.random2
+
+CVstats_disp.random2=CVstats_disp.random[[2]]
+CVstats_disp.random2 <- CVstats_disp.random2[order(names(CVstats_disp.random2))]
+names(CVstats_disp.random2)<-studycounts$region
+CVstats_disp.random[[2]]=CVstats_disp.random2
+
+###
+studycounts_sigma<-studycounts[-which(!(studycounts$name%in%names(CVstats_sigma.sl.random[[2]]))),]
+CVstats_sigma.sl.random2=CVstats_sigma.sl.random[[2]]
+CVstats_sigma.sl.random2 <- CVstats_sigma.sl.random2[order(names(CVstats_sigma.sl.random2))]
+names(CVstats_sigma.sl.random2)<-studycounts_sigma$region
+CVstats_sigma.sl.random[[2]]=CVstats_sigma.sl.random2
+
+studycounts_sigma<-studycounts[-which(!(studycounts$name%in%names(CVstats_sigma.disp.random[[2]]))),]
+CVstats_sigma.disp.random2=CVstats_sigma.disp.random[[2]]
+CVstats_sigma.disp.random2 <- CVstats_sigma.disp.random2[order(names(CVstats_sigma.disp.random2))]
+names(CVstats_sigma.disp.random2)<-studycounts_sigma$region
+CVstats_sigma.disp.random[[2]]=CVstats_sigma.disp.random2
 
 #format prediction/test sets into dataframe for plotting
 sl_predobs.df=CombinePredObs(CVstats_sl.random)
@@ -754,5 +811,5 @@ dev.off()
 #Write any final output needed as objects ---------
 saveRDS(X_sel,file.path(objdir,"X_sel.rds"))
 saveRDS(X_vec_list,file.path(objdir,"X_vec_list.rds"))
-
+#View(X_sel)
 
